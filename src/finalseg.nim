@@ -2,7 +2,7 @@
 # Copyright zhoupeng
 # jieba's finalseg port to nim
 import os
-import json
+# import json
 import tables
 import future
 import nre
@@ -11,6 +11,7 @@ import times
 import prob_start
 import prob_trans
 import prob_emit
+import sequtils
 
 const
     MIN_FLOAT = -3.14e100
@@ -30,10 +31,10 @@ type
 
 var Force_Split_Words = newSeq[string]()
 
-proc viterbi(obs:string, states:string, start_p:ProbStart, trans_p:ProbTrans, emit_p:ProbEmit):ProbState2 = 
+proc viterbi(obs:seq[Rune], states:string, start_p:ProbStart, trans_p:ProbTrans, emit_p:ProbEmit):ProbState2 = 
     let 
-        runeLen = obs.runeLen()
-        y2 = runeStrAtPos(obs,0)
+        runeLen = obs.len
+        y2 = $obs[0]
     var 
         first = initTable[char, float]()
         prob_table_list:seq[Table[char, float]] = @[]  # tabular
@@ -51,7 +52,7 @@ proc viterbi(obs:string, states:string, start_p:ProbStart, trans_p:ProbTrans, em
         prob_list = newSeq[ProbState]()
         pos_list = newSeq[char]()
     for t in 1..runeLen - 1:
-        let emit_key = runeStrAtPos(obs,t)
+        let emit_key = $obs[t]
         var 
             n = initTable[char, float]()
         prob_table_list.add(n)
@@ -88,26 +89,31 @@ proc viterbi(obs:string, states:string, start_p:ProbStart, trans_p:ProbTrans, em
 proc internal_cut(sentence:string):seq[string] {.noInit.}  =
     # let start = cpuTime()
     result = newSeq[string]()
-    let mp = viterbi(sentence, "BMES", PROB_START_DATA, PROB_TRANS_DATA, PROB_EMIT_DATA)
+
+    let 
+        runes = sentence.toRunes()
+        mp = viterbi(runes, "BMES", PROB_START_DATA, PROB_TRANS_DATA, PROB_EMIT_DATA)
+        slen = runes.len
     # echo "viterbi cost:",cpuTime()-start
     var
         begin = 0
         nexti =  0
         pos:char
-
-    for i in 0..< sentence.runeLen()  :
+    for i in 0..< slen  :
         pos = mp.state[i]
         if pos == 'B':
             begin = i
         elif pos == 'E':
             let ed = i + 1
-            result.add( runeSubStr(sentence,begin,ed-begin) )
+            result.add( sentence.runeSubStr(begin,ed-begin) )
+            # result.add( runes[begin..<(ed-begin)] )
             nexti = i + 1
         elif pos == 'S':
-            result.add(runeStrAtPos(sentence,i))
+            result.add( $runes[i] )
             nexti = i + 1
-    if nexti < sentence.runeLen():
-        result.add( runeSubStr(sentence,nexti,sentence.runeLen()-nexti))
+    if nexti < slen:
+        # result.add( runes[nexti..<slen-nexti])
+        result.add( sentence.runeSubStr(nexti,slen-nexti))
 
 let
     # re_han = re(r"(*UTF)([\x{4E00}-\x{9FD5}]+)")
@@ -121,7 +127,7 @@ proc cut*(sentence:string):seq[string] {.discardable,noInit.} =
     result = newSeq[string]()
     if sentence.len == 0 or sentence.runeLen() == 0:
         return result
-    let blocks:seq[string] = nre.split(sentence,re_han)
+    let blocks:seq[string] = filter(nre.split(sentence,re_han),proc(x: string): bool = x.len > 0)
     var 
         sl = newSeq[string]()
         tmp = newSeq[string]()
@@ -139,6 +145,6 @@ proc cut*(sentence:string):seq[string] {.discardable,noInit.} =
         else:
             tmp = split(blk,re_skip)
             for x in tmp:
-                if sentence.len == 0 or x.runeLen()>0:
+                if x.len > 0 or x.runeLen()>0:
                     result.add( x)
     return result
