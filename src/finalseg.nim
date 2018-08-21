@@ -60,7 +60,7 @@ proc viterbi(obs:string, states:string, start_p:BMES, trans_p:JsonNode, emit_p:J
         let 
             y = $k
             sp = start_p[y]
-            ep =  if emit_p[y].hasKey(y2) : emit_p[y][y2].getFloat(MIN_FLOAT) else:MIN_FLOAT
+            ep =  if emit_p[y].hasKey(y2) : emit_p[y][y2].getFloat(MIN_FLOAT) else: MIN_FLOAT
         prob_table_list[0][k] =  (sp + ep)
         path[k] =  @[k]
     var 
@@ -76,19 +76,19 @@ proc viterbi(obs:string, states:string, start_p:BMES, trans_p:JsonNode, emit_p:J
             let
                 y = $k
                 y2 = runeStrAtPos(obs,t)
-                em_p = if emit_p[y].hasKey(y2) : emit_p[y][y2].getFloat( MIN_FLOAT) else:MIN_FLOAT
+                em_p = if emit_p[y].hasKey(y2) : emit_p[y][y2].getFloat( MIN_FLOAT) else: MIN_FLOAT
 
             prob_list.setLen(0)
             for value in PrevStatus:
                 let 
                     vChar = value[0]
-                    y2 = $value[0]
-                    ty = trans_p[y2]
+                    vStr = $value[0]
+                    ty = trans_p[vStr]
                     vPre = prob_table_list[t - 1]
-                    p1 = if vPre.hasKey(vChar) :vPre[vChar] else: MIN_FLOAT
-                    p2 = if ty.hasKey(y):ty[y].getFloat( MIN_FLOAT) else:MIN_FLOAT
+                    p1 = if vPre.hasKey(vChar) : vPre[vChar] else: MIN_FLOAT
+                    p2 = if ty.hasKey(y) : ty[y].getFloat( MIN_FLOAT) else: MIN_FLOAT
                     prob = p1 + p2 + em_p
-                    ps:ProbState = (prob:prob,state:value[0])
+                    ps:ProbState = (prob:prob,state:vChar)
                 prob_list.add(ps)
             let fps = max(prob_list)
             prob_table_list[t][k] = fps.prob
@@ -109,9 +109,10 @@ proc internal_cut(sentence:string):seq[string] {.noInit.}  =
     var
         begin = 0
         nexti =  0
+        pos:char
 
     for i in 0..< sentence.runeLen()  :
-        let pos = mp.state[i]
+        pos = mp.state[i]
         if pos == 'B':
             begin = i
         elif pos == 'E':
@@ -134,7 +135,7 @@ proc add_force_split*(word:string) =
 
 proc cut*(sentence:string):seq[string] {.discardable,noInit.} = 
     result = newSeq[string]()
-    if sentence.runeLen() == 0:
+    if sentence.len == 0 or sentence.runeLen() == 0:
         return result
     let blocks:seq[string] = nre.split(sentence,re_han)
     var 
@@ -154,6 +155,6 @@ proc cut*(sentence:string):seq[string] {.discardable,noInit.} =
         else:
             tmp = split(blk,re_skip)
             for x in tmp:
-                if sentence.len == 0 and x.runeLen()>0:
+                if sentence.len == 0 or x.runeLen()>0:
                     result.add( x)
     return result
