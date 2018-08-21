@@ -8,6 +8,9 @@ import future
 import nre
 import unicode
 import times
+import prob_start
+import prob_trans
+import prob_emit
 
 const
     MIN_FLOAT = -3.14e100
@@ -19,35 +22,15 @@ const
     }
 
 type
-
-    # PrevStatus {.pure.} = enum
-        # B = "ES", M = "MB", S = "SE", E = "BM"
-    BMES = object
-        B,M,E,S : float
+    ProbStart = TableRef[char, float]
+    ProbTrans = TableRef[char, TableRef[char, float]]
+    ProbEmit = TableRef[string, TableRef[string, float]]
     ProbState = tuple[prob: float, state: char]
     ProbState2 = tuple[prob: float, state: seq[char]]
 
-template filename: string = instantiationInfo().filename
-
-let appDir = parentDir(filename())
-# var starttime =  epochTime()
-
-let prob_start = to(parseFile(appDir / "prob_start.json"),BMES)
-let prob_trans = parseFile(appDir / "prob_trans.json")
-let prob_emit = parseFile(appDir  / "prob_emit.json")
-# echo "load json costs:",(epochTime() - starttime)
-
-
-proc `[]`(x: BMES,index:string): float =
-  result = MIN_FLOAT
-  for name, value in x.fieldPairs:
-    if name == index:
-      return value
-  return result 
-
 var Force_Split_Words = newSeq[string]()
 
-proc viterbi(obs:string, states:string, start_p:BMES, trans_p:JsonNode, emit_p:JsonNode):ProbState2 = 
+proc viterbi(obs:string, states:string, start_p:ProbStart, trans_p:ProbTrans, emit_p:ProbEmit):ProbState2 = 
     let 
         runeLen = obs.runeLen()
         y2 = runeStrAtPos(obs,0)
@@ -59,8 +42,8 @@ proc viterbi(obs:string, states:string, start_p:BMES, trans_p:JsonNode, emit_p:J
     for k in states:  # init
         let 
             y = $k
-            sp = start_p[y]
-            ep =  if emit_p[y].hasKey(y2) : emit_p[y][y2].getFloat(MIN_FLOAT) else: MIN_FLOAT
+            sp = start_p[k]
+            ep =  if emit_p[y].hasKey(y2) : emit_p[y].getOrDefault(y2)  else: MIN_FLOAT
         prob_table_list[0][k] =  (sp + ep)
         path[k] =  @[k]
     var 
@@ -76,17 +59,16 @@ proc viterbi(obs:string, states:string, start_p:BMES, trans_p:JsonNode, emit_p:J
             let
                 y = $k
                 y2 = runeStrAtPos(obs,t)
-                em_p = if emit_p[y].hasKey(y2) : emit_p[y][y2].getFloat( MIN_FLOAT) else: MIN_FLOAT
+                em_p = if emit_p[y].hasKey(y2) : emit_p[y].getOrDefault(y2) else: MIN_FLOAT
 
             prob_list.setLen(0)
             for value in PrevStatus:
                 let 
                     vChar = value[0]
-                    vStr = $value[0]
-                    ty = trans_p[vStr]
+                    ty = trans_p[vChar]
                     vPre = prob_table_list[t - 1]
                     p1 = if vPre.hasKey(vChar) : vPre[vChar] else: MIN_FLOAT
-                    p2 = if ty.hasKey(y) : ty[y].getFloat( MIN_FLOAT) else: MIN_FLOAT
+                    p2 = if ty.hasKey(k) : ty.getOrDefault(k) else: MIN_FLOAT
                     prob = p1 + p2 + em_p
                     ps:ProbState = (prob:prob,state:vChar)
                 prob_list.add(ps)
@@ -104,7 +86,7 @@ proc viterbi(obs:string, states:string, start_p:BMES, trans_p:JsonNode, emit_p:J
 proc internal_cut(sentence:string):seq[string] {.noInit.}  =
     # let start = cpuTime()
     result = newSeq[string]()
-    let mp = viterbi(sentence, "BMES", prob_start, prob_trans, prob_emit)
+    let mp = viterbi(sentence, "BMES", PROB_START_DATA, PROB_TRANS_DATA, PROB_EMIT_DATA)
     # echo "viterbi cost:",cpuTime()-start
     var
         begin = 0
