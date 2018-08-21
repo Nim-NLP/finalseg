@@ -143,8 +143,7 @@ proc cut*(sentence:string):seq[string] {.discardable,noInit.} =
                     for c in wordStr:
                         result.add( $c )
         else:
-            tmp = split(blk,re_skip)
+            tmp = filter(split(blk,re_skip),proc(x: string): bool = x.len > 0 or x.runeLen()>0)
             for x in tmp:
-                if x.len > 0 or x.runeLen()>0:
-                    result.add( x)
+                result.add( x)
     return result
