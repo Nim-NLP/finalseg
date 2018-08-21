@@ -7,7 +7,6 @@ import strutils
 # wget https://raw.githubusercontent.com/yanyiwu/practice/master/nodejs/nodejieba/performance/weicheng.utf8 -O tests/weicheng.utf8
 var lines:seq[string] = newSeq[string]()
 
-template filename: string = instantiationInfo().filename
 let appDir = getCurrentDir()
 
 let weicheng = appDir / "tests" / "weicheng.utf8"
@@ -24,11 +23,11 @@ if not isNil(fs):
 
 var starttime = epochTime()
 
-for i in 0..49:
-    for line in lines:
+# for i in 0..49:
+for line in lines:
 
-        let cuted = cut(line)
-        discard cuted.join("/")
+    let cuted = cut(line)
+    discard cuted.join("/")
     # result[random.randint(0, 9)] = r
     #result[random.randint(0, 9)] = jieba.cut(line)
 var endtime =  epochTime()

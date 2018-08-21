@@ -7,6 +7,7 @@ import tables
 import future
 import nre
 import unicode
+import times
 
 const
     MIN_FLOAT = -3.14e100
@@ -19,11 +20,15 @@ const
 
 template filename: string = instantiationInfo().filename
 let appDir = parentDir(filename())
+# var starttime =  epochTime()
+
 let prob_start = parseFile(appDir / "prob_start.json")
 let prob_trans = parseFile(appDir / "prob_trans.json")
 let prob_emit = parseFile(appDir  / "prob_emit.json")
-
+# echo "load json costs:",(epochTime() - starttime)
 type
+    # BMES = object
+    #     B,M,E,S : float
     ProbState = tuple[prob: float, state: string]
     ProbState2 = tuple[prob: float, state: seq[string]]
 var Force_Split_Words:seq[string] = @[]
@@ -31,21 +36,24 @@ var Force_Split_Words:seq[string] = @[]
 proc viterbi(obs:string, states:string, start_p:JsonNode, trans_p:JsonNode, emit_p:JsonNode):ProbState2 = 
     let runeLen = obs.runeLen()
     var 
-        V = %*[{}]  # tabular
-        path = %*{}
+        first = initTable[string, float]()
+        V:seq[Table[string, float]] = @[]  # tabular
+        path = initTable[string, seq[string]]()
+    V.add(first)
     for k in states:  # init
         let 
             y = $k
             y2 = runeStrAtPos(obs,0)
             sp = if start_p.hasKey(y) : start_p[y].getFloat(MIN_FLOAT) else:MIN_FLOAT
             ep =  if emit_p[y].hasKey(y2) : emit_p[y][y2].getFloat(MIN_FLOAT) else:MIN_FLOAT
-        V[0][y] = %* (sp + ep)
-        path[y] = %* [y]
+        V[0][y] =  (sp + ep)
+        path[y] =  @[y]
 
     for t in 1..runeLen - 1:
-        V.add(%*{})
-        let 
-            newpath = %*{}
+        var n = initTable[string, float]()
+        V.add(n)
+        var 
+            newpath = initTable[string, seq[string]]()
         for k in states:
             let
                 y = $k
@@ -58,27 +66,29 @@ proc viterbi(obs:string, states:string, start_p:JsonNode, trans_p:JsonNode, emit
                     y2 = $y0 
                     ty = trans_p[y2]
                     vPre = V[t - 1]
-                    p1 = if vPre.hasKey(y2) :vPre[y2].getFloat(MIN_FLOAT) :else:MIN_FLOAT
+                    p1 = if vPre.hasKey(y2) :vPre[y2] else: MIN_FLOAT
                     p2 = if ty.hasKey(y):ty[y].getFloat( MIN_FLOAT) else:MIN_FLOAT
                     prob = p1 + p2 + em_p
                     ps:ProbState = (prob:prob,state:y2)
                 a.add(ps)
             let fps = max(a)
-            V[t][y] = %* fps.prob
+            V[t][y] = fps.prob
             var
-                r = lc[y.getStr() | (y <- path[fps.state].getElems()),string ]
+                r = lc[y | (y <- path[fps.state]),string ]
             r.add(y)
-            newpath[y] = %* r
+            newpath[y] =  r
         path = newpath
     let 
-        ps:ProbState = max( lc[(prob:if V[runeLen - 1].hasKey($y) :V[runeLen - 1][$y].getFloat(MIN_FLOAT) else:MIN_FLOAT, state: $y) | (y <- "ES" ),ProbState])
-        r:ProbState2 = (prob: ps.prob,state:lc[y.getStr() | (y <- path[ps.state].getElems()),string ] )
+        ps:ProbState = max( lc[(prob:if V[runeLen - 1].hasKey($y) :V[runeLen - 1][$y] else: MIN_FLOAT, state: $y) | (y <- "ES" ),ProbState])
+        r:ProbState2 = (prob: ps.prob,state:lc[y | (y <- path[ps.state]),string ] )
     return r
 
 
 proc internal_cut(sentence:string):seq[string]  =
+    # let start = cpuTime()
     let mp = viterbi(sentence, "BMES", prob_start, prob_trans, prob_emit)
-    var 
+    # echo "viterbi cost:",cpuTime()-start
+    var
         begin = 0
         nexti =  0
         result = newSeq[string]()
