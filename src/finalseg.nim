@@ -48,28 +48,28 @@ proc `[]`(x: BMES,index:string): float =
 var Force_Split_Words = newSeq[string]()
 
 proc viterbi(obs:string, states:string, start_p:BMES, trans_p:JsonNode, emit_p:JsonNode):ProbState2 = 
-    let runeLen = obs.runeLen()
+    let 
+        runeLen = obs.runeLen()
+        y2 = runeStrAtPos(obs,0)
     var 
-        first = initTable[string, float]()
-        V:seq[Table[string, float]] = @[]  # tabular
-        path = initTable[string, seq[char]]()
-    V.add(first)
+        first = initTable[char, float]()
+        prob_table_list:seq[Table[char, float]] = @[]  # tabular
+        path = initTable[char, seq[char]]()
+    prob_table_list.add(first)
     for k in states:  # init
         let 
             y = $k
-        let 
-            y2 = runeStrAtPos(obs,0)
             sp = start_p[y]
             ep =  if emit_p[y].hasKey(y2) : emit_p[y][y2].getFloat(MIN_FLOAT) else:MIN_FLOAT
-        V[0][y] =  (sp + ep)
-        path[y] =  @[k]
+        prob_table_list[0][k] =  (sp + ep)
+        path[k] =  @[k]
     var 
-        newpath = initTable[string, seq[char]]()
+        newpath = initTable[char, seq[char]]()
         prob_list = newSeq[ProbState]()
         pos_list = newSeq[char]()
     for t in 1..runeLen - 1:
-        var n = initTable[string, float]()
-        V.add(n)
+        var n = initTable[char, float]()
+        prob_table_list.add(n)
         newpath.clear()
         pos_list.setLen(0)
         for k in states:
@@ -81,23 +81,24 @@ proc viterbi(obs:string, states:string, start_p:BMES, trans_p:JsonNode, emit_p:J
             prob_list.setLen(0)
             for value in PrevStatus:
                 let 
+                    vChar = value[0]
                     y2 = $value[0]
                     ty = trans_p[y2]
-                    vPre = V[t - 1]
-                    p1 = if vPre.hasKey(y2) :vPre[y2] else: MIN_FLOAT
+                    vPre = prob_table_list[t - 1]
+                    p1 = if vPre.hasKey(vChar) :vPre[vChar] else: MIN_FLOAT
                     p2 = if ty.hasKey(y):ty[y].getFloat( MIN_FLOAT) else:MIN_FLOAT
                     prob = p1 + p2 + em_p
                     ps:ProbState = (prob:prob,state:value[0])
                 prob_list.add(ps)
             let fps = max(prob_list)
-            V[t][y] = fps.prob
-            pos_list = lc[y | (y <- path[$fps.state]),char ]
+            prob_table_list[t][k] = fps.prob
+            pos_list = lc[y | (y <- path[fps.state]),char ]
             pos_list.add(y)
-            newpath[y] =  pos_list
+            newpath[k] =  pos_list
         path = newpath
     let 
-        ps:ProbState = max( lc[(prob:if V[runeLen - 1].hasKey($y) :V[runeLen - 1][$y] else: MIN_FLOAT, state: y) | (y <- "ES" ),ProbState])
-    result = (prob: ps.prob,state:lc[y | (y <- path[$ps.state]),char ] )
+        ps:ProbState = max( lc[(prob:if prob_table_list[runeLen - 1].hasKey(y) :prob_table_list[runeLen - 1][y] else: MIN_FLOAT, state: y) | (y <- "ES" ),ProbState])
+    result = (prob: ps.prob,state:lc[y | (y <- path[ps.state]),char ] )
 
 
 proc internal_cut(sentence:string):seq[string] {.noInit.}  =
