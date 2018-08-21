@@ -51,11 +51,11 @@ proc viterbi(obs:seq[Rune], states:string, start_p:ProbStart, trans_p:ProbTrans,
         newpath = initTable[char, seq[char]]()
         prob_list = newSeq[ProbState]()
         pos_list = newSeq[char]()
+        restOne = initTable[char, float]()
     for t in 1..runeLen - 1:
         let emit_key = $obs[t]
-        var 
-            n = initTable[char, float]()
-        prob_table_list.add(n)
+        restOne.clear()
+        prob_table_list.add(restOne)
         newpath.clear()
         pos_list.setLen(0)
 
@@ -99,21 +99,24 @@ proc internal_cut(sentence:string):seq[string] {.noInit.}  =
         begin = 0
         nexti =  0
         pos:char
-    for i in 0..< slen  :
+    for i,rune in runes:
         pos = mp.state[i]
         if pos == 'B':
             begin = i
         elif pos == 'E':
-            let ed = i + 1
-            result.add( sentence.runeSubStr(begin,ed-begin) )
-            # result.add( runes[begin..<(ed-begin)] )
+            let 
+                ed = i + 1
+                # endpos = ed-begin
+            result.add( $runes[begin..<ed] )
+            # result.add( sentence.runeSubStr(begin,endpos) )
             nexti = i + 1
         elif pos == 'S':
-            result.add( $runes[i] )
+            result.add( $rune )
             nexti = i + 1
+        # i+=1
     if nexti < slen:
-        # result.add( runes[nexti..<slen-nexti])
-        result.add( sentence.runeSubStr(nexti,slen-nexti))
+        result.add( $runes[nexti..<slen-nexti])
+        # result.add( sentence.runeSubStr(nexti,slen-nexti))
 
 let
     # re_han = re(r"(*UTF)([\x{4E00}-\x{9FD5}]+)")
