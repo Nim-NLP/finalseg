@@ -126,10 +126,11 @@ proc cut*(sentence:string):seq[string] {.discardable.} =
         if isSome(blk.match(re_han)) == true:
             let sl:seq[string] = internal_cut(blk)
             for word in sl:
-                if ($word in Force_Split_Words == false):
-                    result.add( $word)
+                let wordStr = $word
+                if (wordStr in Force_Split_Words == false):
+                    result.add( wordStr)
                 else:
-                    for c in $word:
+                    for c in wordStr:
                         result.add( $c )
         else:
             let tmp = split(blk,re_skip)
