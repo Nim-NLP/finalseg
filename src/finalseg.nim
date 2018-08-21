@@ -51,15 +51,17 @@ proc viterbi(obs:string, states:string, start_p:ProbStart, trans_p:ProbTrans, em
         prob_list = newSeq[ProbState]()
         pos_list = newSeq[char]()
     for t in 1..runeLen - 1:
-        var n = initTable[char, float]()
+        let emit_key = runeStrAtPos(obs,t)
+        var 
+            n = initTable[char, float]()
         prob_table_list.add(n)
         newpath.clear()
         pos_list.setLen(0)
+
         for k in states:
             let
                 y = $k
-                y2 = runeStrAtPos(obs,t)
-                em_p = if emit_p[y].hasKey(y2) : emit_p[y].getOrDefault(y2) else: MIN_FLOAT
+                em_p = if emit_p[y].hasKey(emit_key) : emit_p[y].getOrDefault(emit_key) else: MIN_FLOAT
 
             prob_list.setLen(0)
             for value in PrevStatus:
@@ -67,7 +69,7 @@ proc viterbi(obs:string, states:string, start_p:ProbStart, trans_p:ProbTrans, em
                     vChar = value[0]
                     ty = trans_p[vChar]
                     vPre = prob_table_list[t - 1]
-                    p1 = if vPre.hasKey(vChar) : vPre[vChar] else: MIN_FLOAT
+                    p1 = if vPre.hasKey(vChar) : vPre.getOrDefault(vChar) else: MIN_FLOAT
                     p2 = if ty.hasKey(k) : ty.getOrDefault(k) else: MIN_FLOAT
                     prob = p1 + p2 + em_p
                     ps:ProbState = (prob:prob,state:vChar)
