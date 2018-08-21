@@ -12,20 +12,20 @@ import times
 const
     MIN_FLOAT = -3.14e100
     PrevStatus = {
-        "B": "ES",
-        "M": "MB",
-        "S": "SE",
-        "E": "BM"
-    }.toTable
+        'B': "ES",
+        'M': "MB",
+        'S': "SE",
+        'E': "BM"
+    }
 
 type
 
-    # PrevStatus = enum
-    #     B = "ES", M = "MB", S = "SE", E = "BM"
+    # PrevStatus {.pure.} = enum
+        # B = "ES", M = "MB", S = "SE", E = "BM"
     BMES = object
         B,M,E,S : float
-    ProbState = tuple[prob: float, state: string]
-    ProbState2 = tuple[prob: float, state: seq[string]]
+    ProbState = tuple[prob: float, state: char]
+    ProbState2 = tuple[prob: float, state: seq[char]]
 
 template filename: string = instantiationInfo().filename
 
@@ -52,7 +52,7 @@ proc viterbi(obs:string, states:string, start_p:BMES, trans_p:JsonNode, emit_p:J
     var 
         first = initTable[string, float]()
         V:seq[Table[string, float]] = @[]  # tabular
-        path = initTable[string, seq[string]]()
+        path = initTable[string, seq[char]]()
     V.add(first)
     for k in states:  # init
         let 
@@ -62,42 +62,42 @@ proc viterbi(obs:string, states:string, start_p:BMES, trans_p:JsonNode, emit_p:J
             sp = start_p[y]
             ep =  if emit_p[y].hasKey(y2) : emit_p[y][y2].getFloat(MIN_FLOAT) else:MIN_FLOAT
         V[0][y] =  (sp + ep)
-        path[y] =  @[y]
+        path[y] =  @[k]
     var 
-        newpath = initTable[string, seq[string]]()
+        newpath = initTable[string, seq[char]]()
         prob_list = newSeq[ProbState]()
+        pos_list = newSeq[char]()
     for t in 1..runeLen - 1:
         var n = initTable[string, float]()
         V.add(n)
         newpath.clear()
+        pos_list.setLen(0)
         for k in states:
             let
                 y = $k
                 y2 = runeStrAtPos(obs,t)
                 em_p = if emit_p[y].hasKey(y2) : emit_p[y][y2].getFloat( MIN_FLOAT) else:MIN_FLOAT
 
-            prob_list = @[]
-            for y0 in PrevStatus[y]:
+            prob_list.setLen(0)
+            for value in PrevStatus:
                 let 
-                    y2 = $y0 
+                    y2 = $value[0]
                     ty = trans_p[y2]
                     vPre = V[t - 1]
                     p1 = if vPre.hasKey(y2) :vPre[y2] else: MIN_FLOAT
                     p2 = if ty.hasKey(y):ty[y].getFloat( MIN_FLOAT) else:MIN_FLOAT
                     prob = p1 + p2 + em_p
-                    ps:ProbState = (prob:prob,state:y2)
+                    ps:ProbState = (prob:prob,state:value[0])
                 prob_list.add(ps)
             let fps = max(prob_list)
             V[t][y] = fps.prob
-            var
-                r = lc[y | (y <- path[fps.state]),string ]
-            r.add(y)
-            newpath[y] =  r
+            pos_list = lc[y | (y <- path[$fps.state]),char ]
+            pos_list.add(y)
+            newpath[y] =  pos_list
         path = newpath
     let 
-        ps:ProbState = max( lc[(prob:if V[runeLen - 1].hasKey($y) :V[runeLen - 1][$y] else: MIN_FLOAT, state: $y) | (y <- "ES" ),ProbState])
-        r:ProbState2 = (prob: ps.prob,state:lc[y | (y <- path[ps.state]),string ] )
-    return r
+        ps:ProbState = max( lc[(prob:if V[runeLen - 1].hasKey($y) :V[runeLen - 1][$y] else: MIN_FLOAT, state: y) | (y <- "ES" ),ProbState])
+    result = (prob: ps.prob,state:lc[y | (y <- path[$ps.state]),char ] )
 
 
 proc internal_cut(sentence:string):seq[string] {.noInit.}  =
@@ -111,13 +111,13 @@ proc internal_cut(sentence:string):seq[string] {.noInit.}  =
 
     for i in 0..< sentence.runeLen()  :
         let pos = mp.state[i]
-        if pos == "B":
+        if pos == 'B':
             begin = i
-        elif pos == "E":
+        elif pos == 'E':
             let ed = i + 1
             result.add( runeSubStr(sentence,begin,ed-begin) )
             nexti = i + 1
-        elif pos == "S":
+        elif pos == 'S':
             result.add(runeStrAtPos(sentence,i))
             nexti = i + 1
     if nexti < sentence.runeLen():
