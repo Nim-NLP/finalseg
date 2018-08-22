@@ -4,7 +4,7 @@
 import os
 # import json
 import tables
-import future
+import sugar
 import nre
 import unicode
 import times
@@ -20,7 +20,8 @@ const
         'M': "MB",
         'S': "SE",
         'E': "BM"
-    }
+    }.toTable
+    BMES = "BMES"
 
 type
     ProbStart = TableRef[char, float]
@@ -65,9 +66,9 @@ proc viterbi(obs:seq[Rune], states:string, start_p:ProbStart, trans_p:ProbTrans,
                 em_p = if emit_p[y].hasKey(emit_key) : emit_p[y].getOrDefault(emit_key) else: MIN_FLOAT
 
             prob_list.setLen(0)
-            for value in PrevStatus:
+            for value in PrevStatus[k]:
                 let 
-                    vChar = value[0]
+                    vChar = value
                     ty = trans_p[vChar]
                     vPre = prob_table_list[t - 1]
                     p1 = if vPre.hasKey(vChar) : vPre.getOrDefault(vChar) else: MIN_FLOAT
@@ -90,7 +91,7 @@ iterator internal_cut(sentence:string):seq[Rune]  =
     let 
         runes = sentence.toRunes()
         slen = runes.len
-        mp = viterbi(runes, "BMES", PROB_START_DATA, PROB_TRANS_DATA, PROB_EMIT_DATA)
+        mp = viterbi(runes, BMES, PROB_START_DATA, PROB_TRANS_DATA, PROB_EMIT_DATA)
 
     var
         begin = 0

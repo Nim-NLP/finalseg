@@ -8,7 +8,7 @@ from jieba.finalseg import load_model
 start_P, trans_P, emit_P = load_model()
 par = path.dirname(path.dirname(path.abspath(__file__)))
 
-TEMPLATE = "import tables\nvar %s_DATA* = %s"
+TEMPLATE = "import tables\nlet %s_DATA* = %s"
 
 # TEMPLATE2 = "var DATA* = %s"
 
@@ -19,7 +19,7 @@ def dump2json():
     with open(path.join(par, "src/prob_trans.json"), "w") as f:
         json.dump(trans_P, f, ensure_ascii=False)
     with open(path.join(par, "src/prob_emit.json"), "w") as f:
-        json.dump(emit_P, f, ensure_ascii=False)
+        json.dump(emit_P, f, ensure_ascii=False, indent=2)
 
 
 def trans2nim():
@@ -41,8 +41,10 @@ def trans2nim():
             .replace("}", "}.newTable")
             .replace('"', "'")
             )
-        prob_emit_nim_source = TEMPLATE % (
-            "PROB_EMIT", prob_emit.read().replace("}", "}.newTable"))
+        prob_emit_nim_source = \
+        TEMPLATE % ("PROB_EMIT", prob_emit.read()
+                    .replace("}", "}.newTable")
+                    )
         prob_start_nim.write(prob_start_nim_source)
         prob_trans_nim.write(prob_trans_nim_source)
         prob_emit_nim.write(prob_emit_nim_source)
