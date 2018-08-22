@@ -19,10 +19,10 @@ if __name__ == "__main__":
     #     import jieba_fast as jieba
     #     import jieba_fast.posseg as pseg
 
-    if len(sys.argv) == 4 and sys.argv[3] == "pseg":
-        method = pseg.lcut
-    else:
-        method = cut
+    # if len(sys.argv) == 4 and sys.argv[3] == "pseg":
+    #     method = pseg.lcut
+    # else:
+    method = cut
     HMM = False
     if len(sys.argv) >= 3 and sys.argv[2] == "hmm":
         HMM = True
