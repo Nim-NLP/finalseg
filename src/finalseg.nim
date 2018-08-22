@@ -135,11 +135,12 @@ proc add_force_split*(word:string) =
 iterator cut*(sentence:string):string  = 
     # if sentence.len == 0 or sentence.runeLen() == 0:
     #     return 
-    let blocks:seq[string] = filter(nre.split(sentence,re_han),proc(x: string): bool = x.len > 0)
+   
     var 
-        tmp = newSeq[string]()
         wordStr:string 
-    for blk in blocks:
+    for blk in nre.split(sentence,re_han):
+        if blk.len == 0:
+            continue
         if isSome(blk.match(re_han)) == true:
             for word in internal_cut(blk):
                 wordStr = $word
