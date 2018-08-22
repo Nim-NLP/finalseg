@@ -31,6 +31,8 @@ type
     ProbState2 = tuple[prob: float, state: seq[char]]
 
 var Force_Split_Words = newSeq[string]()
+# var
+#   emitState = initTable[string, float]()
 
 proc viterbi(obs:seq[Rune], states:string, start_p:ProbStart, trans_p:ProbTrans, emit_p:ProbEmit):ProbState2 = 
     let 
@@ -41,11 +43,13 @@ proc viterbi(obs:seq[Rune], states:string, start_p:ProbStart, trans_p:ProbTrans,
         prob_table_list:seq[Table[char, float]] = @[]  # tabular
         path = initTable[char, seq[char]]()
     prob_table_list.add(first)
+    var 
+        ep:float
+        sp:float
     for k in states:  # init
-        let 
-            y = $k
-            sp = start_p[k]
-            ep =  if emit_p[y].hasKey(y2) : emit_p[y].getOrDefault(y2)  else: MIN_FLOAT
+        sp = start_p[k]
+        let y = $k
+        ep =  if emit_p[y].hasKey(y2) : emit_p[y].getOrDefault(y2)  else: MIN_FLOAT
         prob_table_list[0][k] =  (sp + ep)
         path[k] =  @[k]
     var 
@@ -53,6 +57,11 @@ proc viterbi(obs:seq[Rune], states:string, start_p:ProbStart, trans_p:ProbTrans,
         prob_list = newSeq[ProbState]()
         pos_list = newSeq[char]()
         restOne = initTable[char, float]()
+        fps:ProbState
+        ps:ProbState
+        p1:float
+        p2:float
+        prob:float
     for t in 1..runeLen - 1:
         let emit_key = $obs[t]
         restOne.clear()
@@ -63,28 +72,25 @@ proc viterbi(obs:seq[Rune], states:string, start_p:ProbStart, trans_p:ProbTrans,
         for k in states:
             let
                 y = $k
-                em_p = if emit_p[y].hasKey(emit_key) : emit_p[y].getOrDefault(emit_key) else: MIN_FLOAT
-
+            ep = if emit_p[y].hasKey(emit_key) : emit_p[y].getOrDefault(emit_key) else: MIN_FLOAT
             prob_list.setLen(0)
-            for value in PrevStatus[k]:
+            for vChar in PrevStatus[k]:
                 let 
-                    vChar = value
                     ty = trans_p[vChar]
                     vPre = prob_table_list[t - 1]
-                    p1 = if vPre.hasKey(vChar) : vPre.getOrDefault(vChar) else: MIN_FLOAT
-                    p2 = if ty.hasKey(k) : ty.getOrDefault(k) else: MIN_FLOAT
-                    prob = p1 + p2 + em_p
-                    ps:ProbState = (prob:prob,state:vChar)
+                p1 = if vPre.hasKey(vChar) : vPre.getOrDefault(vChar) else: MIN_FLOAT
+                p2 = if ty.hasKey(k) : ty.getOrDefault(k) else: MIN_FLOAT
+                prob = p1 + p2 + ep
+                ps = (prob:prob,state:vChar)
                 prob_list.add(ps)
-            let fps = max(prob_list)
+            fps = max(prob_list)
             prob_table_list[t][k] = fps.prob
             pos_list = lc[y | (y <- path[fps.state]),char ]
             pos_list.add(y)
             newpath[k] =  pos_list
         path = newpath
-    let 
-        ps:ProbState = max( lc[(prob:if prob_table_list[runeLen - 1].hasKey(y) :prob_table_list[runeLen - 1][y] else: MIN_FLOAT, state: y) | (y <- "ES" ),ProbState])
-    result = (prob: ps.prob,state:lc[y | (y <- path[ps.state]),char ] )
+    fps = max( lc[(prob:if prob_table_list[runeLen - 1].hasKey(y) :prob_table_list[runeLen - 1][y] else: MIN_FLOAT, state: y) | (y <- "ES" ),ProbState])
+    result = (prob: ps.prob,state:lc[y | (y <- path[fps.state]),char ] )
 
 
 iterator internal_cut(sentence:string):seq[Rune]  =
@@ -102,9 +108,7 @@ iterator internal_cut(sentence:string):seq[Rune]  =
         if pos == 'B':
             begin = i
         elif pos == 'E':
-            let 
-                ed = i + 1
-            yield runes[begin..<ed]
+            yield runes[begin..i]
             nexti = i + 1
         elif pos == 'S':
             yield @[rune] 
