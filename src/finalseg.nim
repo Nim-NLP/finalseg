@@ -143,15 +143,15 @@ iterator cut*(sentence:string):string  =
         if isSome(blk.match(re_han)) == true:
             for word in internal_cut(blk):
                 wordStr = $word
-                if (wordStr in Force_Split_Words == false):
+                if wordStr notin Force_Split_Words:
                     yield wordStr
                 else:
                     for c in wordStr:
                         yield $c
         else:
-            tmp = filter(split(blk,re_skip),proc(x: string): bool = x.len > 0 or x.runeLen()>0)
-            for x in tmp:
-                yield x
+            for x in split(blk,re_skip):
+                if x.len > 0 or x.runeLen > 0:
+                    yield x
 
 proc lcut*(sentence:string):seq[string] =
     result = lc[y | (y <- cut(sentence)),string ]
