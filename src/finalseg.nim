@@ -1,17 +1,16 @@
 # finalseg
 # Copyright zhoupeng
 # jieba's finalseg port to nim
-import os
-# import json
+
 import tables
 import sugar
 import nre
 import unicode
-import times
 import prob_start
 import prob_trans
 import prob_emit
 import sequtils
+import strutils
 
 const
     MIN_FLOAT = -3.14e100
@@ -27,20 +26,27 @@ type
     ProbStart = TableRef[char, float]
     ProbTrans = TableRef[char, TableRef[char, float]]
     ProbEmit = TableRef[string, TableRef[string, float]]
-    ProbState = tuple[prob: float, state: char]
+    ProbState =  tuple[prob: float, state: char]
     ProbState2 = tuple[prob: float, state: seq[char]]
 
 var Force_Split_Words = newSeq[string]()
 
-proc viterbi(obs:seq[Rune], states:string, start_p:ProbStart, trans_p:ProbTrans, emit_p:ProbEmit):ProbState2 = 
-    let 
-        runeLen = obs.len
-        y2 = $obs[0]
-        first = initTable[char, float]()
+proc viterbi(content:string, states:string, start_p:ProbStart, trans_p:ProbTrans, emit_p:ProbEmit):ProbState2 = 
     var 
+        firstRune:Rune
+        runeOffset = 0
         prob_table_list:seq[Table[char, float]] = @[]  # tabular
         path = initTable[char, seq[char]]()
+    fastRuneAt(content,runeOffset,firstRune)
+
+    let 
+        runeLen = content.runeLen()
+        y2 = $firstRune
+        restStr = content[runeOffset..^1]
+        first = initTable[char, float]()
+        
     prob_table_list.add( first)
+
     var 
         ep:float
         sp:float
@@ -52,6 +58,7 @@ proc viterbi(obs:seq[Rune], states:string, start_p:ProbStart, trans_p:ProbTrans,
         ep =  if emit_p[y].hasKey(y2) : emit_p[y].getOrDefault(y2)  else: MIN_FLOAT
         prob_table_list[0][k] =  (sp + ep)
         path[k] =  @[k]
+
     var 
         newpath = initTable[char, seq[char]]()
         prob_list = newSeq[ProbState]()
@@ -64,8 +71,11 @@ proc viterbi(obs:seq[Rune], states:string, start_p:ProbStart, trans_p:ProbTrans,
         prob:float
         transRef:TableRef[char, float]
         probRef:Table[char, float]
-    for t in 1..runeLen - 1:
-        emit_key = $obs[t]
+        curRune:Rune
+
+    for t in 1..<runeLen:
+        fastRuneAt(content,runeOffset,curRune)
+        emit_key = $curRune
         restOne.clear()
         prob_table_list.add(restOne)
         newpath.clear()
@@ -77,7 +87,7 @@ proc viterbi(obs:seq[Rune], states:string, start_p:ProbStart, trans_p:ProbTrans,
             prob_list.setLen(0)
             for vChar in PrevStatus[k]: 
                 transRef = trans_p[vChar]
-                probRef = prob_table_list[t - 1]
+                probRef = prob_table_list[t-1]
                 p1 = if probRef.hasKey(vChar) : probRef.getOrDefault(vChar) else: MIN_FLOAT
                 p2 = if transRef.hasKey(k) : transRef.getOrDefault(k) else: MIN_FLOAT
                 prob = p1 + p2 + ep
@@ -89,6 +99,7 @@ proc viterbi(obs:seq[Rune], states:string, start_p:ProbStart, trans_p:ProbTrans,
             pos_list.add(y)
             newpath[k] =  pos_list
         path = newpath
+
     fps = max( lc[(prob:if prob_table_list[runeLen - 1].hasKey(y) :prob_table_list[runeLen - 1][y] else: MIN_FLOAT, state: y) | (y <- "ES" ),ProbState])
     result = (prob: ps.prob,state:lc[y | (y <- path[fps.state]),char ] )
 
@@ -97,12 +108,12 @@ iterator internal_cut(sentence:string):seq[Rune]  =
     let 
         runes = sentence.toRunes()
         slen = runes.len
-        mp = viterbi(runes, BMES, PROB_START_DATA, PROB_TRANS_DATA, PROB_EMIT_DATA)
-
+        mp = viterbi( sentence, BMES, PROB_START_DATA, PROB_TRANS_DATA, PROB_EMIT_DATA)
     var
         begin = 0
         nexti =  0
         pos:char
+
     for i,rune in runes:
         pos = mp.state[i]
         if pos == 'B':
