@@ -86,15 +86,12 @@ proc viterbi(obs:seq[Rune], states:string, start_p:ProbStart, trans_p:ProbTrans,
     result = (prob: ps.prob,state:lc[y | (y <- path[ps.state]),char ] )
 
 
-proc internal_cut(sentence:string):seq[string] {.noInit.}  =
-    # let start = cpuTime()
-    result = newSeq[string]()
-
+iterator internal_cut(sentence:string):seq[Rune]  =
     let 
         runes = sentence.toRunes()
-        mp = viterbi(runes, "BMES", PROB_START_DATA, PROB_TRANS_DATA, PROB_EMIT_DATA)
         slen = runes.len
-    # echo "viterbi cost:",cpuTime()-start
+        mp = viterbi(runes, "BMES", PROB_START_DATA, PROB_TRANS_DATA, PROB_EMIT_DATA)
+
     var
         begin = 0
         nexti =  0
@@ -106,17 +103,13 @@ proc internal_cut(sentence:string):seq[string] {.noInit.}  =
         elif pos == 'E':
             let 
                 ed = i + 1
-                # endpos = ed-begin
-            result.add( $runes[begin..<ed] )
-            # result.add( sentence.runeSubStr(begin,endpos) )
+            yield runes[begin..<ed]
             nexti = i + 1
         elif pos == 'S':
-            result.add( $rune )
+            yield @[rune] 
             nexti = i + 1
-        # i+=1
     if nexti < slen:
-        result.add( $runes[nexti..<slen-nexti])
-        # result.add( sentence.runeSubStr(nexti,slen-nexti))
+        yield runes[nexti..<slen-nexti]
 
 let
     # re_han = re(r"(*UTF)([\x{4E00}-\x{9FD5}]+)")
@@ -126,27 +119,26 @@ let
 proc add_force_split*(word:string) = 
     Force_Split_Words.add(word)
 
-proc cut*(sentence:string):seq[string] {.discardable,noInit.} = 
-    result = newSeq[string]()
-    if sentence.len == 0 or sentence.runeLen() == 0:
-        return result
+iterator cut*(sentence:string):string  = 
+    # if sentence.len == 0 or sentence.runeLen() == 0:
+    #     return 
     let blocks:seq[string] = filter(nre.split(sentence,re_han),proc(x: string): bool = x.len > 0)
     var 
-        sl = newSeq[string]()
         tmp = newSeq[string]()
-        wordStr = ""
+        wordStr:string 
     for blk in blocks:
         if isSome(blk.match(re_han)) == true:
-            sl = internal_cut(blk)
-            for word in sl:
+            for word in internal_cut(blk):
                 wordStr = $word
                 if (wordStr in Force_Split_Words == false):
-                    result.add( wordStr)
+                    yield wordStr
                 else:
                     for c in wordStr:
-                        result.add( $c )
+                        yield $c
         else:
             tmp = filter(split(blk,re_skip),proc(x: string): bool = x.len > 0 or x.runeLen()>0)
             for x in tmp:
-                result.add( x)
-    return result
+                yield x
+
+proc lcut*(sentence:string):seq[string] =
+    result = lc[y | (y <- cut(sentence)),string ]

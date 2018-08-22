@@ -3,7 +3,7 @@ import streams
 import times
 import finalseg
 import strutils
-
+# import nimprof 
 # wget https://raw.githubusercontent.com/yanyiwu/practice/master/nodejs/nodejieba/performance/weicheng.utf8 -O tests/weicheng.utf8
 var lines:seq[string] = newSeq[string]()
 
@@ -26,8 +26,9 @@ var starttime = epochTime()
 # for i in 0..49:
 for line in lines:
 
-    let cuted = cut(line)
-    discard cuted.join("/")
+    # let cuted = cut(line)
+
+    discard lcut(line).join("/")
     # result[random.randint(0, 9)] = r
     #result[random.randint(0, 9)] = jieba.cut(line)
 var endtime =  epochTime()
