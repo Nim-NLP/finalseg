@@ -4,6 +4,7 @@ import pkg_resources
 import pickle
 import json
 from jieba.finalseg import load_model
+import re
 
 start_P, trans_P, emit_P = load_model()
 par = path.dirname(path.dirname(path.abspath(__file__)))
@@ -42,7 +43,7 @@ def trans2nim():
             .replace('"', "'")
             )
         prob_emit_nim_source = \
-        TEMPLATE % ("PROB_EMIT", prob_emit.read()
+        TEMPLATE % ("PROB_EMIT", re.sub(r'"([BMES])"',r"'\1'",prob_emit.read())
                     .replace("}", "}.newTable")
                     )
         prob_start_nim.write(prob_start_nim_source)

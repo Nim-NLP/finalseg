@@ -25,7 +25,7 @@ const
 type
     ProbStart = TableRef[char, float]
     ProbTrans = TableRef[char, TableRef[char, float]]
-    ProbEmit = TableRef[string, TableRef[string, float]]
+    ProbEmit = TableRef[char, TableRef[string, float]]
     ProbState =  tuple[prob: float, state: char]
     ProbState2 = tuple[prob: float, state: seq[char]]
 
@@ -50,12 +50,10 @@ proc viterbi(content:string, states:string, start_p:ProbStart, trans_p:ProbTrans
     var 
         ep:float
         sp:float
-        y:string
         emit_key:string
     for k in states:  # init
         sp = start_p[k]
-        y = $k
-        ep =  if emit_p[y].hasKey(y2) : emit_p[y].getOrDefault(y2)  else: MIN_FLOAT
+        ep =  if emit_p[k].hasKey(y2) : emit_p[k].getOrDefault(y2)  else: MIN_FLOAT
         prob_table_list[0][k] =  (sp + ep)
         path[k] =  @[k]
 
@@ -82,8 +80,7 @@ proc viterbi(content:string, states:string, start_p:ProbStart, trans_p:ProbTrans
         pos_list.setLen(0)
 
         for k in states:
-            y = $k
-            ep = if emit_p[y].hasKey(emit_key) : emit_p[y].getOrDefault(emit_key) else: MIN_FLOAT
+            ep = if emit_p[k].hasKey(emit_key) : emit_p[k].getOrDefault(emit_key) else: MIN_FLOAT
             prob_list.setLen(0)
             for vChar in PrevStatus[k]: 
                 transRef = trans_p[vChar]
@@ -96,7 +93,7 @@ proc viterbi(content:string, states:string, start_p:ProbStart, trans_p:ProbTrans
             fps = max(prob_list)
             prob_table_list[t][k] = fps.prob
             pos_list = lc[y | (y <- path[fps.state]),char ]
-            pos_list.add(y)
+            pos_list.add(k)
             newpath[k] =  pos_list
         path = newpath
 
