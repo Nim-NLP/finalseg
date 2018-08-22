@@ -31,24 +31,24 @@ type
     ProbState2 = tuple[prob: float, state: seq[char]]
 
 var Force_Split_Words = newSeq[string]()
-# var
-#   emitState = initTable[string, float]()
 
 proc viterbi(obs:seq[Rune], states:string, start_p:ProbStart, trans_p:ProbTrans, emit_p:ProbEmit):ProbState2 = 
     let 
         runeLen = obs.len
         y2 = $obs[0]
-    var 
         first = initTable[char, float]()
+    var 
         prob_table_list:seq[Table[char, float]] = @[]  # tabular
         path = initTable[char, seq[char]]()
-    prob_table_list.add(first)
+    prob_table_list.add( first)
     var 
         ep:float
         sp:float
+        y:string
+        emit_key:string
     for k in states:  # init
         sp = start_p[k]
-        let y = $k
+        y = $k
         ep =  if emit_p[y].hasKey(y2) : emit_p[y].getOrDefault(y2)  else: MIN_FLOAT
         prob_table_list[0][k] =  (sp + ep)
         path[k] =  @[k]
@@ -62,24 +62,24 @@ proc viterbi(obs:seq[Rune], states:string, start_p:ProbStart, trans_p:ProbTrans,
         p1:float
         p2:float
         prob:float
+        transRef:TableRef[char, float]
+        probRef:Table[char, float]
     for t in 1..runeLen - 1:
-        let emit_key = $obs[t]
+        emit_key = $obs[t]
         restOne.clear()
         prob_table_list.add(restOne)
         newpath.clear()
         pos_list.setLen(0)
 
         for k in states:
-            let
-                y = $k
+            y = $k
             ep = if emit_p[y].hasKey(emit_key) : emit_p[y].getOrDefault(emit_key) else: MIN_FLOAT
             prob_list.setLen(0)
-            for vChar in PrevStatus[k]:
-                let 
-                    ty = trans_p[vChar]
-                    vPre = prob_table_list[t - 1]
-                p1 = if vPre.hasKey(vChar) : vPre.getOrDefault(vChar) else: MIN_FLOAT
-                p2 = if ty.hasKey(k) : ty.getOrDefault(k) else: MIN_FLOAT
+            for vChar in PrevStatus[k]: 
+                transRef = trans_p[vChar]
+                probRef = prob_table_list[t - 1]
+                p1 = if probRef.hasKey(vChar) : probRef.getOrDefault(vChar) else: MIN_FLOAT
+                p2 = if transRef.hasKey(k) : transRef.getOrDefault(k) else: MIN_FLOAT
                 prob = p1 + p2 + ep
                 ps = (prob:prob,state:vChar)
                 prob_list.add(ps)
