@@ -2,8 +2,8 @@ import os
 import streams
 import times
 import finalseg
-# import nre
-import strutils
+import nre
+import strutils except split
 # import nimprof 
 # wget https://raw.githubusercontent.com/yanyiwu/practice/master/nodejs/nodejieba/performance/weicheng.utf8 -O tests/weicheng.utf8
 proc main =
@@ -23,7 +23,7 @@ proc main =
 
     # var result:seq[string] = @[]
     # var content = readFile(weicheng)
-    # let re_han = re(r"(*UTF)[\p{Han}]+")
+    let re_han = re(r"(*UTF)[\p{Han}]+")
     var 
         starttime = epochTime()
     # for i in 0..49:
@@ -34,8 +34,10 @@ proc main =
     for line in lines:
 
         # let cuted = cut(line)
-        # discard split(line,re_han)
-        discard lcut(line).join("/")
+        # discard findIter(line,re_han)
+        for match in line.findIter(re_han):
+            discard
+        # discard lcut(line).join("/")
         # result[random.randint(0, 9)] = r
         #result[random.randint(0, 9)] = jieba.cut(line)
     var endtime =  epochTime()

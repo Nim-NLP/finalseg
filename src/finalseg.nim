@@ -4,13 +4,13 @@
 
 import tables
 import sugar
-import nre
+import nre except split
 import unicode
 import prob_start
 import prob_trans
 import prob_emit
 import sequtils
-import strutils
+import strutils except split
 import times
 
 const
@@ -52,6 +52,7 @@ proc viterbi(content:string, states:string, start_p:ProbStart, trans_p:ProbTrans
         ep:float
         sp:float
         emit_key:string
+    
     for k in states:  # init
         sp = start_p[k]
         ep =  if emit_p[k].hasKey(y2) : emit_p[k].getOrDefault(y2)  else: MIN_FLOAT
@@ -101,6 +102,35 @@ proc viterbi(content:string, states:string, start_p:ProbStart, trans_p:ProbTrans
     fps = max( lc[(prob:if prob_table_list[runeLen - 1].hasKey(y) :prob_table_list[runeLen - 1][y] else: MIN_FLOAT, state: y) | (y <- "ES" ),ProbState])
     result = (prob: ps.prob,state:lc[y | (y <- path[fps.state]),char ] )
 
+iterator split(str: string, pattern: Regex, maxSplit = -1, start = 0): string =
+  var lastIdx = start
+  var splits = 0
+  var bounds = 0 .. -1
+  var never_ran = true
+
+  for match in str.findIter(pattern, start = start):
+    never_ran = false
+
+    bounds = match.matchBounds
+
+   
+    if bounds.a <= bounds.b or bounds.a > start:
+      yield str[lastIdx.. bounds.a - 1]
+      splits += 1
+
+    lastIdx = bounds.b + 1
+
+    for cap in match.captures:
+      # if there are captures, include them in the result
+      yield cap
+
+    if splits == maxSplit - 1:
+      break
+
+  if bounds.a <= bounds.b or bounds.b < str.high or never_ran:
+    
+    yield str[bounds.b + 1.. str.high]
+
 iterator internal_cut(sentence:string):seq[Rune]  =
     let 
         runes = sentence.toRunes()
@@ -128,7 +158,7 @@ iterator internal_cut(sentence:string):seq[Rune]  =
 let
     # re_han = re(r"(*UTF)([\x{4E00}-\x{9FD5}]+)")
     # re_han = re(r"(*UTF)([\p{Han}]+)")
-    re_han = re(r"(*UTF)([\p{Han}]+)")
+    re_han = re(r"(*U)([\p{Han}]+)")
     re_skip = re(r"([a-zA-Z0-9]+(?:\.\d+)?%?)")
     # re_skip = re(r"(*UTF)([\p{Latin}]+)")
 
@@ -138,13 +168,12 @@ proc add_force_split*(word:string) =
 iterator cut*(sentence:string):string  = 
     # if sentence.len == 0 or sentence.runeLen() == 0:
     #     return 
-   
     var 
-        wordStr:string 
+        wordStr:string
     for blk in split(sentence,re_han):
         if blk.len == 0:
             continue
-        if blk.contains(re_han) == true:
+        if isSome(blk.match(re_han)) == true:
             for word in internal_cut(blk):
                 wordStr = $word
                 if wordStr notin Force_Split_Words:
