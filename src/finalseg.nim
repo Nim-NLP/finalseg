@@ -11,6 +11,7 @@ import prob_trans
 import prob_emit
 import sequtils
 import strutils
+import times
 
 const
     MIN_FLOAT = -3.14e100
@@ -100,12 +101,12 @@ proc viterbi(content:string, states:string, start_p:ProbStart, trans_p:ProbTrans
     fps = max( lc[(prob:if prob_table_list[runeLen - 1].hasKey(y) :prob_table_list[runeLen - 1][y] else: MIN_FLOAT, state: y) | (y <- "ES" ),ProbState])
     result = (prob: ps.prob,state:lc[y | (y <- path[fps.state]),char ] )
 
-
 iterator internal_cut(sentence:string):seq[Rune]  =
     let 
         runes = sentence.toRunes()
         slen = runes.len
         mp = viterbi( sentence, BMES, PROB_START_DATA, PROB_TRANS_DATA, PROB_EMIT_DATA)
+    
     var
         begin = 0
         nexti =  0
@@ -126,8 +127,10 @@ iterator internal_cut(sentence:string):seq[Rune]  =
 
 let
     # re_han = re(r"(*UTF)([\x{4E00}-\x{9FD5}]+)")
+    # re_han = re(r"(*UTF)([\p{Han}]+)")
     re_han = re(r"(*UTF)([\p{Han}]+)")
     re_skip = re(r"([a-zA-Z0-9]+(?:\.\d+)?%?)")
+    # re_skip = re(r"(*UTF)([\p{Latin}]+)")
 
 proc add_force_split*(word:string) = 
     Force_Split_Words.add(word)
@@ -138,10 +141,10 @@ iterator cut*(sentence:string):string  =
    
     var 
         wordStr:string 
-    for blk in nre.split(sentence,re_han):
+    for blk in split(sentence,re_han):
         if blk.len == 0:
             continue
-        if isSome(blk.match(re_han)) == true:
+        if blk.contains(re_han) == true:
             for word in internal_cut(blk):
                 wordStr = $word
                 if wordStr notin Force_Split_Words:
