@@ -27,9 +27,9 @@ def trans2nim():
     with open( path.join(par,"src/prob_start.json")) as prob_start,\
         open(path.join(par,"src/prob_trans.json")) as  prob_trans,\
         open(path.join(par,"src/prob_emit.json")) as prob_emit,\
-        open( path.join(par,"src/prob_start.nim"),"w") as prob_start_nim,\
-        open(path.join(par,"src/prob_trans.nim"),"w") as  prob_trans_nim,\
-        open(path.join(par,"src/prob_emit.nim"),"w") as prob_emit_nim:
+        open( path.join(par,"src/private/prob_start.nim"),"w") as prob_start_nim,\
+        open(path.join(par,"src/private/prob_trans.nim"),"w") as  prob_trans_nim,\
+        open(path.join(par,"src/private/prob_emit.nim"),"w") as prob_emit_nim:
         prob_start_nim_source = \
         TEMPLATE % (
             "PROB_START", prob_start.read()
