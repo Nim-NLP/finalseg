@@ -6,9 +6,9 @@ import tables
 import sugar
 import re
 import unicode
-import private/prob_start
-import private/prob_trans
-import private/prob_emit
+import finalseg/prob_start
+import finalseg/prob_trans
+import finalseg/prob_emit
 import sequtils
 import strutils except split
 import times
