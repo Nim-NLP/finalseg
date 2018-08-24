@@ -4,7 +4,7 @@
 
 import tables
 import sugar
-import re except split
+import re
 import unicode
 import private/prob_start
 import private/prob_trans
@@ -12,6 +12,8 @@ import private/prob_emit
 import sequtils
 import strutils except split
 import times
+import unicode
+import unicodedb/scripts
 
 const
     MIN_FLOAT = -3.14e100
@@ -31,6 +33,32 @@ type
     ProbState2 = tuple[prob: float, state: seq[char]]
 
 var Force_Split_Words = newSeq[string]()
+
+proc isHanCheck(r: Rune): bool =
+  # fast ascii check followed by unicode check
+  result = r.int > 127 and r.unicodeScript() == sptHan
+
+iterator splitHan(s: string): string =
+  var
+    i = 0
+    j = 0
+    k = 0
+    r: Rune
+    isHan = false
+    isHanCurr = false
+  fastRuneAt(s, i, r, false)
+  isHanCurr = r.isHanCheck()
+  isHan = isHanCurr
+  while i < s.len:
+    while isHan == isHanCurr:
+      k = i
+      if i == s.len:
+        break
+      fastRuneAt(s, i, r, true)
+      isHanCurr = r.isHanCheck()
+    yield s[j ..< k]
+    j = k
+    isHan = isHanCurr
 
 proc viterbi(content:string, states:string, start_p:ProbStart, trans_p:ProbTrans, emit_p:ProbEmit):ProbState2 = 
     var 
@@ -102,26 +130,6 @@ proc viterbi(content:string, states:string, start_p:ProbStart, trans_p:ProbTrans
     fps = max( lc[(prob:if prob_table_list[runeLen - 1].hasKey(y) :prob_table_list[runeLen - 1][y] else: MIN_FLOAT, state: y) | (y <- "ES" ),ProbState])
     result = (prob: ps.prob,state:lc[y | (y <- path[fps.state]),char ] )
 
-proc processSubString(s: openArray[char]):string =
-  # This allocates, do something that does not allocate :P
-  result = newString(s.len)
-  for i in 0 ..< s.len:
-    result[i] = s[i]
-
-iterator split(str: string, pattern: Regex): string =
-  var start = 0
-  var bounds = (first: 0, last: 0)
-  while start < str.len:
-    bounds = findBounds(str, pattern, start)
-    if bounds.first == -1:
-      break
-    if bounds.first > 0:
-      yield processSubString(toOpenArray(str, start, bounds.first-1))
-    yield processSubString(toOpenArray(str, bounds.first, bounds.last))
-    start = bounds.last + 1
-  if start < str.len:
-    yield processSubString(toOpenArray(str, start, str.len-1))
-
 iterator internal_cut(sentence:string):seq[Rune]  =
     let 
         runes = sentence.toRunes()
@@ -161,7 +169,7 @@ iterator cut*(sentence:string):string  =
     #     return 
     var 
         wordStr:string
-    for blk in split(sentence,re_han):
+    for blk in splitHan(sentence):
         if blk.len == 0:
             continue
         if blk.match(re_han) == true:
