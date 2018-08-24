@@ -4,11 +4,11 @@
 
 import tables
 import sugar
-import nre except split
+import re except split
 import unicode
-import prob_start
-import prob_trans
-import prob_emit
+import private/prob_start
+import private/prob_trans
+import private/prob_emit
 import sequtils
 import strutils except split
 import times
@@ -102,34 +102,25 @@ proc viterbi(content:string, states:string, start_p:ProbStart, trans_p:ProbTrans
     fps = max( lc[(prob:if prob_table_list[runeLen - 1].hasKey(y) :prob_table_list[runeLen - 1][y] else: MIN_FLOAT, state: y) | (y <- "ES" ),ProbState])
     result = (prob: ps.prob,state:lc[y | (y <- path[fps.state]),char ] )
 
-iterator split(str: string, pattern: Regex, maxSplit = -1, start = 0): string =
-  var lastIdx = start
-  var splits = 0
-  var bounds = 0 .. -1
-  var never_ran = true
+proc processSubString(s: openArray[char]):string =
+  # This allocates, do something that does not allocate :P
+  result = newString(s.len)
+  for i in 0 ..< s.len:
+    result[i] = s[i]
 
-  for match in str.findIter(pattern, start = start):
-    never_ran = false
-
-    bounds = match.matchBounds
-
-   
-    if bounds.a <= bounds.b or bounds.a > start:
-      yield str[lastIdx.. bounds.a - 1]
-      splits += 1
-
-    lastIdx = bounds.b + 1
-
-    for cap in match.captures:
-      # if there are captures, include them in the result
-      yield cap
-
-    if splits == maxSplit - 1:
+iterator split(str: string, pattern: Regex): string =
+  var start = 0
+  var bounds = (first: 0, last: 0)
+  while start < str.len:
+    bounds = findBounds(str, pattern, start)
+    if bounds.first == -1:
       break
-
-  if bounds.a <= bounds.b or bounds.b < str.high or never_ran:
-    
-    yield str[bounds.b + 1.. str.high]
+    if bounds.first > 0:
+      yield processSubString(toOpenArray(str, start, bounds.first-1))
+    yield processSubString(toOpenArray(str, bounds.first, bounds.last))
+    start = bounds.last + 1
+  if start < str.len:
+    yield processSubString(toOpenArray(str, start, str.len-1))
 
 iterator internal_cut(sentence:string):seq[Rune]  =
     let 
@@ -158,7 +149,7 @@ iterator internal_cut(sentence:string):seq[Rune]  =
 let
     # re_han = re(r"(*UTF)([\x{4E00}-\x{9FD5}]+)")
     # re_han = re(r"(*UTF)([\p{Han}]+)")
-    re_han = re(r"(*U)([\p{Han}]+)")
+    re_han = re(r"(*UTF)([\p{Han}]+)")
     re_skip = re(r"([a-zA-Z0-9]+(?:\.\d+)?%?)")
     # re_skip = re(r"(*UTF)([\p{Latin}]+)")
 
@@ -173,7 +164,7 @@ iterator cut*(sentence:string):string  =
     for blk in split(sentence,re_han):
         if blk.len == 0:
             continue
-        if isSome(blk.match(re_han)) == true:
+        if blk.match(re_han) == true:
             for word in internal_cut(blk):
                 wordStr = $word
                 if wordStr notin Force_Split_Words:

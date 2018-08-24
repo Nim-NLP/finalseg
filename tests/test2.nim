@@ -4,6 +4,7 @@ import times
 import finalseg
 import nre
 import strutils except split
+
 # import nimprof 
 # wget https://raw.githubusercontent.com/yanyiwu/practice/master/nodejs/nodejieba/performance/weicheng.utf8 -O tests/weicheng.utf8
 proc main =
@@ -35,9 +36,9 @@ proc main =
 
         # let cuted = cut(line)
         # discard findIter(line,re_han)
-        for match in line.findIter(re_han):
-            discard
-        # discard lcut(line).join("/")
+        # for match in line.findIter(re_han):
+        #     discard
+        discard lcut(line).join("/")
         # result[random.randint(0, 9)] = r
         #result[random.randint(0, 9)] = jieba.cut(line)
     var endtime =  epochTime()
