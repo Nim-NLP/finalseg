@@ -171,7 +171,7 @@ proc add_force_split*(word:string) =
 
 iterator cut*(sentence:string):string  = 
     # if sentence.len == 0 or sentence.runeLen() == 0:
-    #     return 
+    #     break 
     var 
         wordStr:string
     for blk in splitHan(sentence):
