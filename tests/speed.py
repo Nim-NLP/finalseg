@@ -37,8 +37,8 @@ if __name__ == "__main__":
     # for i in range(50):
     for line in lines:
         r = '/'.join(str(list(method(line))))
-        # print(r)
-        # result[random.randint(0, 9)] = r
-        #result[random.randint(0, 9)] = jieba.cut(line)
+    # print(r)
+    # result[random.randint(0, 9)] = r
+    #result[random.randint(0, 9)] = jieba.cut(line)
     endtime = datetime.datetime.now()
     print(endtime - starttime)

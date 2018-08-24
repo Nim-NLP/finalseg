@@ -67,21 +67,17 @@ iterator splitHan(s: string): string =
     isHan = isHanCurr
 
 proc viterbi(content:string, states:string, start_p:ProbStart, trans_p:ProbTrans, emit_p:ProbEmit):ProbState2 = 
+    let 
+        runeLen = content.runeLen()
     var 
         firstRune:Rune
         runeOffset = 0
-        prob_table_list:seq[Table[char, float]] = @[]  # tabular
+        prob_table_list = newSeqWith(runeLen, newTable[char, float]() )
         path = initTable[char, seq[char]]()
     fastRuneAt(content,runeOffset,firstRune)
 
-    let 
-        runeLen = content.runeLen()
+    let
         y2 = $firstRune
-        restStr = content[runeOffset..^1]
-        first = initTable[char, float]()
-        
-    prob_table_list.add( first)
-
     var 
         ep:float
         sp:float
@@ -97,21 +93,20 @@ proc viterbi(content:string, states:string, start_p:ProbStart, trans_p:ProbTrans
         newpath = initTable[char, seq[char]]()
         prob_list = newSeq[ProbState]()
         pos_list = newSeq[char]()
-        restOne = initTable[char, float]()
         fps:ProbState
         ps:ProbState
         p1:float
         p2:float
         prob:float
         transRef:TableRef[char, float]
-        probRef:Table[char, float]
+        probRef:TableRef[char, float]
         curRune:Rune
 
     for t in 1..<runeLen:
         fastRuneAt(content,runeOffset,curRune)
         emit_key = $curRune
-        restOne.clear()
-        prob_table_list.add(restOne)
+        # restOne.clear()
+        # prob_table_list.add(restOne)
         newpath.clear()
         pos_list.setLen(0)
 
