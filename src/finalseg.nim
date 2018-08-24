@@ -4,7 +4,7 @@
 
 import tables
 import sugar
-import re
+import regex
 import unicode
 import finalseg/prob_start
 import finalseg/prob_trans
@@ -34,9 +34,15 @@ type
 
 var Force_Split_Words = newSeq[string]()
 
-proc isHanCheck(r: Rune): bool =
+proc isHan(r: Rune): bool =
   # fast ascii check followed by unicode check
   result = r.int > 127 and r.unicodeScript() == sptHan
+
+proc containsHan(s: string): bool =
+  for r in s.runes:
+    if r.isHan:
+        result = true
+        break
 
 iterator splitHan(s: string): string =
   var
@@ -47,7 +53,7 @@ iterator splitHan(s: string): string =
     isHan = false
     isHanCurr = false
   fastRuneAt(s, i, r, false)
-  isHanCurr = r.isHanCheck()
+  isHanCurr = r.isHan()
   isHan = isHanCurr
   while i < s.len:
     while isHan == isHanCurr:
@@ -55,7 +61,7 @@ iterator splitHan(s: string): string =
       if i == s.len:
         break
       fastRuneAt(s, i, r, true)
-      isHanCurr = r.isHanCheck()
+      isHanCurr = r.isHan()
     yield s[j ..< k]
     j = k
     isHan = isHanCurr
@@ -157,7 +163,6 @@ iterator internal_cut(sentence:string):seq[Rune]  =
 let
     # re_han = re(r"(*UTF)([\x{4E00}-\x{9FD5}]+)")
     # re_han = re(r"(*UTF)([\p{Han}]+)")
-    re_han = re(r"(*UTF)([\p{Han}]+)")
     re_skip = re(r"([a-zA-Z0-9]+(?:\.\d+)?%?)")
     # re_skip = re(r"(*UTF)([\p{Latin}]+)")
 
@@ -172,7 +177,7 @@ iterator cut*(sentence:string):string  =
     for blk in splitHan(sentence):
         if blk.len == 0:
             continue
-        if blk.match(re_han) == true:
+        if containsHan(blk) == true:
             for word in internal_cut(blk):
                 wordStr = $word
                 if wordStr notin Force_Split_Words:
