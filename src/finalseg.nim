@@ -85,7 +85,7 @@ proc viterbi(content:string, states:string, start_p:ProbStart, trans_p:ProbTrans
     
     for k in states:  # init
         sp = start_p[k]
-        ep =  if emit_p[k].hasKey(y2) : emit_p[k].getOrDefault(y2)  else: MIN_FLOAT
+        ep =  if k == 'B' : emit_p[k].getOrDefault(y2)  else: MIN_FLOAT
         prob_table_list[0][k] =  (sp + ep)
         path[k] =  @[k]
 
@@ -165,25 +165,28 @@ proc add_force_split*(word:string) =
     Force_Split_Words.add(word)
 
 iterator cut*(sentence:string):string  = 
-    # if sentence.len == 0 or sentence.runeLen() == 0:
-    #     break 
-    var 
-        wordStr:string
-    for blk in splitHan(sentence):
-        if blk.len == 0:
-            continue
-        if containsHan(blk) == true:
-            for word in internal_cut(blk):
-                wordStr = $word
-                if wordStr notin Force_Split_Words:
-                    yield wordStr
-                else:
-                    for c in wordStr:
-                        yield $c
-        else:
-            for x in split(blk,re_skip):
-                if x.len > 0 or x.runeLen > 0:
-                    yield x
+    # if sentence.len >= 0 and sentence.runeLen() == 0: 
+    if not isNilOrEmpty(sentence):
+        var 
+            wordStr:string
+        for blk in splitHan(sentence):
+            if blk.len == 0:
+                continue
+            if containsHan(blk) == true:
+                for word in internal_cut(blk):
+                    wordStr = $word
+                    if wordStr notin Force_Split_Words:
+                        yield wordStr
+                    else:
+                        for c in wordStr:
+                            yield $c
+            else:
+                for x in split(blk,re_skip):
+                    if x.len > 0 or x.runeLen > 0:
+                        yield x
 
 proc lcut*(sentence:string):seq[string] =
-    result = lc[y | (y <- cut(sentence)),string ]
+    if isNilOrEmpty(sentence):
+        result = @[]
+    else:
+        result = lc[y | (y <- cut(sentence)),string ]
