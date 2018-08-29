@@ -66,28 +66,24 @@ iterator splitHan(s: string): string =
     j = k
     isHan = isHanCurr
 
-proc viterbi(content:string, states:string, start_p:ProbStart, trans_p:ProbTrans, emit_p:ProbEmit):ProbState2 = 
+proc viterbi(runes:seq[Rune], states:string, start_p:ProbStart, trans_p:ProbTrans, emit_p:ProbEmit):ProbState2 = 
     let 
-        runeLen = content.runeLen()
+        runeLen = runes.len
     var 
-        firstRune:Rune
-        runeOffset = 0
+        firstRune:Rune = runes[0]
         prob_table_list = newSeqWith(runeLen, newTable[char, float]() )
         path = initTable[char, seq[char]]()
-    fastRuneAt(content,runeOffset,firstRune)
-
     let
         y2 = $firstRune
     var 
         ep:float
-        sp:float
         emit_key:string
     
     for k in states:  # init
-        sp = start_p[k]
-        ep =  if k == 'B' : emit_p[k].getOrDefault(y2)  else: MIN_FLOAT
-        prob_table_list[0][k] =  (sp + ep)
+        prob_table_list[0][k] = start_p[k]
         path[k] =  @[k]
+
+    prob_table_list[0]['B'] += (if emit_p['B'].hasKey(y2) : emit_p['B'].getOrDefault(y2)  else : MIN_FLOAT)
 
     var 
         newpath = initTable[char, seq[char]]()
@@ -103,7 +99,7 @@ proc viterbi(content:string, states:string, start_p:ProbStart, trans_p:ProbTrans
         curRune:Rune
 
     for t in 1..<runeLen:
-        fastRuneAt(content,runeOffset,curRune)
+        curRune = runes[t]
         emit_key = $curRune
         # restOne.clear()
         # prob_table_list.add(restOne)
@@ -127,15 +123,15 @@ proc viterbi(content:string, states:string, start_p:ProbStart, trans_p:ProbTrans
             pos_list.add(k)
             newpath[k] =  pos_list
         path = newpath
-
-    fps = max( lc[(prob:if prob_table_list[runeLen - 1].hasKey(y) :prob_table_list[runeLen - 1][y] else: MIN_FLOAT, state: y) | (y <- "ES" ),ProbState])
+    let last = prob_table_list[runeLen - 1]
+    fps = max( lc[(prob:if last.hasKey(y) :last[y] else: MIN_FLOAT, state: y) | (y <- "ES" ),ProbState])
     result = (prob: ps.prob,state:lc[y | (y <- path[fps.state]),char ] )
 
 iterator internal_cut(sentence:string):seq[Rune]  =
     let 
         runes = sentence.toRunes()
         slen = runes.len
-        mp = viterbi( sentence, BMES, PROB_START_DATA, PROB_TRANS_DATA, PROB_EMIT_DATA)
+        mp = viterbi(runes, BMES, PROB_START_DATA, PROB_TRANS_DATA, PROB_EMIT_DATA)
     
     var
         begin = 0
