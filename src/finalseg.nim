@@ -66,13 +66,15 @@ iterator splitHan(s: string): string =
     j = k
     isHan = isHanCurr
 
-proc viterbi(runes:seq[Rune], states:string, start_p:ProbStart, trans_p:ProbTrans, emit_p:ProbEmit):ProbState2 = 
+proc viterbi(content:string, states:string, start_p:ProbStart, trans_p:ProbTrans, emit_p:ProbEmit):ProbState2 = 
     let 
-        runeLen = runes.len
+        runeLen = content.runeLen()
     var 
-        firstRune:Rune = runes[0]
+        firstRune:Rune
+        runeOffset = 0
         prob_table_list = newSeqWith(runeLen, newTable[char, float]() )
         path = initTable[char, seq[char]]()
+    fastRuneAt(content,runeOffset,firstRune)
     let
         y2 = $firstRune
     var 
@@ -99,7 +101,7 @@ proc viterbi(runes:seq[Rune], states:string, start_p:ProbStart, trans_p:ProbTran
         curRune:Rune
 
     for t in 1..<runeLen:
-        curRune = runes[t]
+        fastRuneAt(content,runeOffset,curRune)
         emit_key = $curRune
         # restOne.clear()
         # prob_table_list.add(restOne)
@@ -129,27 +131,27 @@ proc viterbi(runes:seq[Rune], states:string, start_p:ProbStart, trans_p:ProbTran
 
 iterator internal_cut(sentence:string):seq[Rune]  =
     let 
-        runes = sentence.toRunes()
-        slen = runes.len
-        mp = viterbi(runes, BMES, PROB_START_DATA, PROB_TRANS_DATA, PROB_EMIT_DATA)
+        mp = viterbi(sentence, BMES, PROB_START_DATA, PROB_TRANS_DATA, PROB_EMIT_DATA)
     
     var
-        begin = 0
-        nexti =  0
+        runeOffset =  0
+        entry:seq[Rune]
         pos:char
 
-    for i,rune in runes:
-        pos = mp.state[i]
-        if pos == 'B':
-            begin = i
+    for rune in sentence.runes:
+        pos = mp.state[runeOffset]
+        runeOffset += 1
+        if pos == 'S':
+            entry.add(rune)
+            yield entry
+            entry.setLen(0)
         elif pos == 'E':
-            yield runes[begin..i]
-            nexti = i + 1
-        elif pos == 'S':
-            yield @[rune] 
-            nexti = i + 1
-    if nexti < slen:
-        yield runes[nexti..<slen-nexti]
+            entry.add(rune)
+            yield entry
+            entry.setLen(0)
+        else:
+            entry.add(rune)
+            continue
 
 let
     # re_han = re(r"(*UTF)([\x{4E00}-\x{9FD5}]+)")
@@ -181,7 +183,7 @@ iterator cut*(sentence:string):string  =
                     if x.len > 0 or x.runeLen > 0:
                         yield x
 
-proc lcut*(sentence:string):seq[string] =
+proc lcut*(sentence:string):seq[string] {.noInit.} =
     if isNilOrEmpty(sentence):
         result = @[]
     else:
