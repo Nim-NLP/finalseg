@@ -83,7 +83,7 @@ proc viterbi(runes:seq[Rune], states:string, start_p:ProbStart, trans_p:ProbTran
         prob_table_list[0][k] = start_p[k]
         path[k] =  @[k]
 
-    prob_table_list[0]['B'] += (if emit_p['B'].hasKey(y2) : emit_p['B'].getOrDefault(y2)  else : MIN_FLOAT)
+    prob_table_list[0]['B'] += emit_p['B'].getOrDefault(y2,MIN_FLOAT)
 
     var 
         newpath = initTable[char, seq[char]]()
@@ -107,13 +107,13 @@ proc viterbi(runes:seq[Rune], states:string, start_p:ProbStart, trans_p:ProbTran
         pos_list.setLen(0)
 
         for k in states:
-            ep = if emit_p[k].hasKey(emit_key) : emit_p[k].getOrDefault(emit_key) else: MIN_FLOAT
+            ep = emit_p[k].getOrDefault(emit_key,MIN_FLOAT)
             prob_list.setLen(0)
             for vChar in PrevStatus[k]: 
                 transRef = trans_p[vChar]
                 probRef = prob_table_list[t-1]
-                p1 = if probRef.hasKey(vChar) : probRef.getOrDefault(vChar) else: MIN_FLOAT
-                p2 = if transRef.hasKey(k) : transRef.getOrDefault(k) else: MIN_FLOAT
+                p1 = probRef.getOrDefault(vChar,MIN_FLOAT)
+                p2 = transRef.getOrDefault(k,MIN_FLOAT)
                 prob = p1 + p2 + ep
                 ps = (prob:prob,state:vChar)
                 prob_list.add(ps)
@@ -124,7 +124,7 @@ proc viterbi(runes:seq[Rune], states:string, start_p:ProbStart, trans_p:ProbTran
             newpath[k] =  pos_list
         path = newpath
     let last = prob_table_list[runeLen - 1]
-    fps = max( lc[(prob:if last.hasKey(y) :last[y] else: MIN_FLOAT, state: y) | (y <- "ES" ),ProbState])
+    fps = max( lc[(prob:last.getOrDefault(y,MIN_FLOAT), state: y) | (y <- "ES" ),ProbState])
     result = (prob: ps.prob,state:lc[y | (y <- path[fps.state]),char ] )
 
 iterator internal_cut(sentence:string):seq[Rune]  =
