@@ -14,6 +14,7 @@ import strutils except split
 import times
 import unicode
 import unicodedb/scripts
+import critbits
 
 const
     MIN_FLOAT = -3.14e100
@@ -28,11 +29,18 @@ const
 type
     ProbStart = TableRef[char, float]
     ProbTrans = TableRef[char, TableRef[char, float]]
-    ProbEmit = TableRef[char, TableRef[string, float]]
+    # ProbEmit = TableRef[char, TableRef[string, float]]
+    ProbEmit = CritBitTree[float] 
     ProbState =  tuple[prob: float, state: char]
     ProbState2 = tuple[prob: float, state: seq[char]]
 
 var Force_Split_Words = newSeq[string]()
+
+proc getOrDefault[T](c: CritBitTree[T]; key: string,def:T):T =
+    if c.hasKey(key):
+        result = c[key]
+    else:
+        result = def
 
 proc isHan(r: Rune): bool =
   # fast ascii check followed by unicode check
@@ -66,7 +74,7 @@ iterator splitHan(s: string): string =
     j = k
     isHan = isHanCurr
 
-proc viterbi(content:string, states:string, start_p:ProbStart, trans_p:ProbTrans, emit_p:ProbEmit):ProbState2 = 
+proc viterbi(content:string, states:string, start_p:ProbStart, trans_p:ProbTrans):ProbState2 = 
     let 
         runeLen = content.runeLen()
     var 
@@ -80,12 +88,15 @@ proc viterbi(content:string, states:string, start_p:ProbStart, trans_p:ProbTrans
     var 
         ep:float
         emit_key:string
-    
+    let BMES = {
+        'B':PROB_EMIT_DATA_B.getOrDefault(y2,MIN_FLOAT),
+        'M':PROB_EMIT_DATA_M.getOrDefault(y2,MIN_FLOAT),
+        'E':PROB_EMIT_DATA_E.getOrDefault(y2,MIN_FLOAT),
+        'S':PROB_EMIT_DATA_S.getOrDefault(y2,MIN_FLOAT)
+    }.toTable
     for k in states:  # init
-        prob_table_list[0][k] = start_p[k]
+        prob_table_list[0][k] = start_p[k] + BMES[k]
         path[k] =  @[k]
-
-    prob_table_list[0]['B'] += emit_p['B'].getOrDefault(y2,MIN_FLOAT)
 
     var 
         newpath = initTable[char, seq[char]]()
@@ -99,17 +110,23 @@ proc viterbi(content:string, states:string, start_p:ProbStart, trans_p:ProbTrans
         transRef:TableRef[char, float]
         probRef:TableRef[char, float]
         curRune:Rune
-
+        BMES2=newTable[char, float]()
     for t in 1..<runeLen:
         fastRuneAt(content,runeOffset,curRune)
         emit_key = $curRune
+
+        BMES2['B']=PROB_EMIT_DATA_B.getOrDefault(emit_key,MIN_FLOAT)
+        BMES2['M']=PROB_EMIT_DATA_M.getOrDefault(emit_key,MIN_FLOAT)
+        BMES2['E']=PROB_EMIT_DATA_E.getOrDefault(emit_key,MIN_FLOAT)
+        BMES2['S']=PROB_EMIT_DATA_S.getOrDefault(emit_key,MIN_FLOAT)
+
         # restOne.clear()
         # prob_table_list.add(restOne)
         newpath.clear()
         pos_list.setLen(0)
 
         for k in states:
-            ep = emit_p[k].getOrDefault(emit_key,MIN_FLOAT)
+            ep = BMES2[k]
             prob_list.setLen(0)
             for vChar in PrevStatus[k]: 
                 transRef = trans_p[vChar]
@@ -131,7 +148,7 @@ proc viterbi(content:string, states:string, start_p:ProbStart, trans_p:ProbTrans
 
 iterator internal_cut(sentence:string):seq[Rune]  =
     let 
-        mp = viterbi(sentence, BMES, PROB_START_DATA, PROB_TRANS_DATA, PROB_EMIT_DATA)
+        mp = viterbi(sentence, BMES, PROB_START_DATA, PROB_TRANS_DATA)
     
     var
         runeOffset =  0
