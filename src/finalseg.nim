@@ -14,7 +14,7 @@ import strutils except split
 import times
 import unicode
 import unicodedb/scripts
-import critbits
+# import critbits
 
 const
     MIN_FLOAT = -3.14e100
@@ -29,18 +29,18 @@ const
 type
     ProbStart = TableRef[char, float]
     ProbTrans = TableRef[char, TableRef[char, float]]
-    # ProbEmit = TableRef[char, TableRef[string, float]]
-    ProbEmit = CritBitTree[float] 
+    ProbEmit = TableRef[char, TableRef[string, float]]
+    # ProbEmit = CritBitTree[float] 
     ProbState =  tuple[prob: float, state: char]
     ProbState2 = tuple[prob: float, state: seq[char]]
 
 var Force_Split_Words = newSeq[string]()
 
-proc getOrDefault[T](c: CritBitTree[T]; key: string,def:T):T =
-    if c.hasKey(key):
-        result = c[key]
-    else:
-        result = def
+# proc getOrDefault[T](c: CritBitTree[T]; key: string,def:T):T =
+#     if c.hasKey(key):
+#         result = c[key]
+#     else:
+#         result = def
 
 proc isHan(r: Rune): bool =
   # fast ascii check followed by unicode check
@@ -74,7 +74,7 @@ iterator splitHan(s: string): string =
     j = k
     isHan = isHanCurr
 
-proc viterbi(content:string, states:string, start_p:ProbStart, trans_p:ProbTrans):ProbState2 = 
+proc viterbi(content:string, states:string, start_p:ProbStart, trans_p:ProbTrans,emit_p:ProbEmit):ProbState2 = 
     let 
         runeLen = content.runeLen()
     var 
@@ -88,14 +88,9 @@ proc viterbi(content:string, states:string, start_p:ProbStart, trans_p:ProbTrans
     var 
         ep:float
         emit_key:string
-    let BMES = {
-        'B':PROB_EMIT_DATA_B.getOrDefault(y2,MIN_FLOAT),
-        'M':PROB_EMIT_DATA_M.getOrDefault(y2,MIN_FLOAT),
-        'E':PROB_EMIT_DATA_E.getOrDefault(y2,MIN_FLOAT),
-        'S':PROB_EMIT_DATA_S.getOrDefault(y2,MIN_FLOAT)
-    }.toTable
+
     for k in states:  # init
-        prob_table_list[0][k] = start_p[k] + BMES[k]
+        prob_table_list[0][k] = start_p[k] + emit_p[k].getOrDefault(y2,MIN_FLOAT)
         path[k] =  @[k]
 
     var 
@@ -115,18 +110,13 @@ proc viterbi(content:string, states:string, start_p:ProbStart, trans_p:ProbTrans
         fastRuneAt(content,runeOffset,curRune)
         emit_key = $curRune
 
-        BMES2['B']=PROB_EMIT_DATA_B.getOrDefault(emit_key,MIN_FLOAT)
-        BMES2['M']=PROB_EMIT_DATA_M.getOrDefault(emit_key,MIN_FLOAT)
-        BMES2['E']=PROB_EMIT_DATA_E.getOrDefault(emit_key,MIN_FLOAT)
-        BMES2['S']=PROB_EMIT_DATA_S.getOrDefault(emit_key,MIN_FLOAT)
-
         # restOne.clear()
         # prob_table_list.add(restOne)
         newpath.clear()
         pos_list.setLen(0)
 
         for k in states:
-            ep = BMES2[k]
+            ep = emit_p[k].getOrDefault(emit_key,MIN_FLOAT)
             prob_list.setLen(0)
             for vChar in PrevStatus[k]: 
                 transRef = trans_p[vChar]
@@ -148,8 +138,7 @@ proc viterbi(content:string, states:string, start_p:ProbStart, trans_p:ProbTrans
 
 iterator internal_cut(sentence:string):seq[Rune]  =
     let 
-        mp = viterbi(sentence, BMES, PROB_START_DATA, PROB_TRANS_DATA)
-    
+        mp = viterbi(sentence, BMES, PROB_START_DATA, PROB_TRANS_DATA,PROB_EMIT_DATA)
     var
         runeOffset =  0
         entry:seq[Rune]
@@ -170,6 +159,31 @@ iterator internal_cut(sentence:string):seq[Rune]  =
             entry.add(rune)
             continue
 
+# proc internal_cut2(sentence:string,cuted:var seq[string]) =
+#     let 
+#         mp = viterbi(sentence, BMES, PROB_START_DATA, PROB_TRANS_DATA,PROB_EMIT_DATA)
+#     var
+#         runeOffset =  0
+#         skipedRuneOffset = 0
+#         pos:char
+#         arrLen = mp.state.count('S') + mp.state.count('E')
+#         runes = sentence.toRunes()
+
+#     cuted = newSeqOfCap[string](arrLen)
+#     for index,rune in runes:
+#         if cuted.len == arrLen:
+#             break
+#         pos = mp.state[index]
+#         if pos == 'S':
+#             skipedRuneOffset = 0
+#             cuted.add($rune)
+#         elif pos == 'E':
+#             cuted.add($runes[index-skipedRuneOffset..index])
+#             skipedRuneOffset = 0
+#         else:
+#             skipedRuneOffset+=1
+#             continue
+
 let
     # re_han = re(r"(*UTF)([\x{4E00}-\x{9FD5}]+)")
     # re_han = re(r"(*UTF)([\p{Han}]+)")
@@ -179,29 +193,30 @@ let
 proc add_force_split*(word:string) = 
     Force_Split_Words.add(word)
 
-iterator cut*(sentence:string):string  = 
-    # if sentence.len >= 0 and sentence.runeLen() == 0: 
-    if not isNilOrEmpty(sentence):
-        var 
-            wordStr:string
-        for blk in splitHan(sentence):
-            if blk.len == 0:
-                continue
-            if containsHan(blk) == true:
-                for word in internal_cut(blk):
-                    wordStr = $word
-                    if wordStr notin Force_Split_Words:
-                        yield wordStr
-                    else:
-                        for c in wordStr:
-                            yield $c
-            else:
-                for x in split(blk,re_skip):
-                    if x.len > 0 or x.runeLen > 0:
-                        yield x
+iterator cut*(sentence:string):string  =  
+    # if sentence.len > 0 and sentence.runeLen > 0:
+    var 
+        wordStr:string
+        # cuted:seq[string]
+    for blk in splitHan(sentence):
+        if blk.len == 0:
+            continue
+        if likely(containsHan(blk) == true):
+            # internal_cut2(blk,cuted)
+            for word in internal_cut(blk):
+                wordStr = $word
+                if likely(wordStr notin Force_Split_Words):
+                    yield wordStr
+                else:
+                    for c in wordStr:
+                        yield $c
+        else:
+            for x in split(blk,re_skip):
+                if x.len > 0 and x.runeLen > 0:
+                    yield x
 
 proc lcut*(sentence:string):seq[string] {.noInit.} =
-    if isNilOrEmpty(sentence):
+    if len(sentence) == 0 or sentence.runeLen == 0:
         result = @[]
     else:
         result = lc[y | (y <- cut(sentence)),string ]
