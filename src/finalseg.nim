@@ -27,9 +27,9 @@ const
     BMES = "BMES"
 
 type
-    ProbStart = TableRef[char, float]
-    ProbTrans = TableRef[char, TableRef[char, float]]
-    ProbEmit = TableRef[char, TableRef[string, float]]
+    ProbStart = Table[char, float]
+    ProbTrans = Table[char, Table[char, float]]
+    ProbEmit = Table[char, Table[Rune, float]]
     # ProbEmit = CritBitTree[float] 
     ProbState =  tuple[prob: float, state: char]
     ProbState2 = tuple[prob: float, state: seq[char]]
@@ -80,17 +80,17 @@ proc viterbi(content:string, states:string, start_p:ProbStart, trans_p:ProbTrans
     var 
         firstRune:Rune
         runeOffset = 0
-        prob_table_list = newSeqWith(runeLen, newTable[char, float]() )
+        prob_table_list = newSeqWith(runeLen, initTable[char, float]() )
         path = initTable[char, seq[char]]()
     fastRuneAt(content,runeOffset,firstRune)
-    let
-        y2 = $firstRune
+    # let
+    #     y2 = $firstRune
     var 
         ep:float
-        emit_key:string
+        # emit_key:string
 
     for k in states:  # init
-        prob_table_list[0][k] = start_p[k] + emit_p[k].getOrDefault(y2,MIN_FLOAT)
+        prob_table_list[0][k] = start_p[k] + emit_p[k].getOrDefault(firstRune,MIN_FLOAT)
         path[k] =  @[k]
 
     var 
@@ -102,13 +102,13 @@ proc viterbi(content:string, states:string, start_p:ProbStart, trans_p:ProbTrans
         p1:float
         p2:float
         prob:float
-        transRef:TableRef[char, float]
-        probRef:TableRef[char, float]
+        transRef:Table[char, float]
+        probRef:Table[char, float]
         curRune:Rune
-        BMES2=newTable[char, float]()
+        # BMES2=newTable[char, float]()
     for t in 1..<runeLen:
         fastRuneAt(content,runeOffset,curRune)
-        emit_key = $curRune
+        # emit_key = $curRune
 
         # restOne.clear()
         # prob_table_list.add(restOne)
@@ -116,7 +116,7 @@ proc viterbi(content:string, states:string, start_p:ProbStart, trans_p:ProbTrans
         pos_list.setLen(0)
 
         for k in states:
-            ep = emit_p[k].getOrDefault(emit_key,MIN_FLOAT)
+            ep = emit_p[k].getOrDefault(curRune,MIN_FLOAT)
             prob_list.setLen(0)
             for vChar in PrevStatus[k]: 
                 transRef = trans_p[vChar]

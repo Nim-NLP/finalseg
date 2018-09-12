@@ -9,8 +9,19 @@ import re
 start_P, trans_P, emit_P = load_model()
 par = path.dirname(path.dirname(path.abspath(__file__)))
 
-TEMPLATE = "import tables\nlet %s_DATA* = %s"
+TEMPLATE = "import tables\nconst %s_DATA* = %s"
+TEMPLATE2 = """
+import tables
+import unicode
+# Use enums instead of this when keys are not provided by user
+proc toRune(s: string): Rune =
+  var n = 0
+  fastRuneAt(s, n, result, true)
+  if n < s.len:
+    raise newException(ValueError, "not a single unicode char")
 
+const %s_DATA* = %s
+"""
 # TEMPLATE2 = "var DATA* = %s"
 
 
@@ -33,18 +44,18 @@ def trans2nim():
         prob_start_nim_source = \
         TEMPLATE % (
             "PROB_START", prob_start.read()
-            .replace("}", "}.newTable")
+            .replace("}", "}.toTable")
             .replace('"', "'")
             )
         prob_trans_nim_source = \
         TEMPLATE % (
             "PROB_TRANS", prob_trans.read()
-            .replace("}", "}.newTable")
+            .replace("}", "}.toTable")
             .replace('"', "'")
             )
         prob_emit_nim_source = \
-        TEMPLATE % ("PROB_EMIT", re.sub(r'"([BMES])"',r"'\1'",prob_emit.read())
-                    .replace("}", "}.newTable")
+        TEMPLATE2 % ("PROB_EMIT", re.sub('("[^\"]+")',r"\1.toRune ",re.sub(r'"([BMES])"',r"'\1'",prob_emit.read()))
+                    .replace("}", "}.toTable")
                     )
         prob_start_nim.write(prob_start_nim_source)
         prob_trans_nim.write(prob_trans_nim_source)
