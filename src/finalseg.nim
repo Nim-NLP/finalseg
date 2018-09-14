@@ -18,18 +18,12 @@ import unicodedb/scripts
 
 const
     MIN_FLOAT = -3.14e100
-    PrevStatus = {
-        'B': "ES",
-        'M': "MB",
-        'S': "SE",
-        'E': "BM"
-    }.toTable
     BMES = "BMES"
 
 type
-    ProbStart = TableRef[char, float]
-    ProbTrans = TableRef[char, TableRef[char, float]]
-    ProbEmit = TableRef[char, TableRef[string, float]]
+    ProbStart = OrderedTableRef[char, float]
+    ProbTrans = OrderedTableRef[char, OrderedTableRef[char, float]]
+    ProbEmit = OrderedTableRef[char, OrderedTableRef[string, float]]
     # ProbEmit = CritBitTree[float] 
     ProbState =  tuple[prob: float, state: char]
     ProbState2 = tuple[prob: float, state: seq[char]]
@@ -74,67 +68,78 @@ iterator splitHan(s: string): string =
     j = k
     isHan = isHanCurr
 
+proc cmpTrans(ap,bp:float,a,b:char):ProbState =
+    var 
+        at = (prob:ap,state:a)
+        bt = (prob:bp,state:b)
+    result = max(at,bt)
+
 proc viterbi(content:string, states:string, start_p:ProbStart, trans_p:ProbTrans,emit_p:ProbEmit):ProbState2 = 
     let 
         runeLen = content.runeLen()
     var 
         firstRune:Rune
         runeOffset = 0
-        prob_table_list = newSeqWith(runeLen, newTable[char, float]() )
+        prob_table_list = newSeqWith(runeLen, newOrderedTable[char, float]() )
         path = initTable[char, seq[char]]()
     fastRuneAt(content,runeOffset,firstRune)
-    let
-        y2 = $firstRune
     var 
         ep:float
-        emit_key:string
+        emit_key = $firstRune
 
     for k in states:  # init
-        prob_table_list[0][k] = start_p[k] + emit_p[k].getOrDefault(y2,MIN_FLOAT)
+        prob_table_list[0][k] = start_p[k] + emit_p[k].getOrDefault(emit_key,MIN_FLOAT)
         path[k] =  @[k]
 
     var 
         newpath = initTable[char, seq[char]]()
         prob_list = newSeq[ProbState]()
         pos_list = newSeq[char]()
-        fps:ProbState
         ps:ProbState
-        p1:float
-        p2:float
-        prob:float
-        transRef:TableRef[char, float]
-        probRef:TableRef[char, float]
+        ap:float
+        bp:float
+        a:char
+        b:char
+        probRef:OrderedTableRef[char, float]
         curRune:Rune
-        BMES2=newTable[char, float]()
+
     for t in 1..<runeLen:
         fastRuneAt(content,runeOffset,curRune)
         emit_key = $curRune
-
-        # restOne.clear()
-        # prob_table_list.add(restOne)
         newpath.clear()
-        pos_list.setLen(0)
-
+        probRef = prob_table_list[t-1]
         for k in states:
             ep = emit_p[k].getOrDefault(emit_key,MIN_FLOAT)
             prob_list.setLen(0)
-            for vChar in PrevStatus[k]: 
-                transRef = trans_p[vChar]
-                probRef = prob_table_list[t-1]
-                p1 = probRef.getOrDefault(vChar,MIN_FLOAT)
-                p2 = transRef.getOrDefault(k,MIN_FLOAT)
-                prob = p1 + p2 + ep
-                ps = (prob:prob,state:vChar)
-                prob_list.add(ps)
-            fps = max(prob_list)
-            prob_table_list[t][k] = fps.prob
-            pos_list = lc[y | (y <- path[fps.state]),char ]
+            
+            case k:
+            of 'B':
+                a = 'E'
+                b = 'S'
+            of 'M':
+                a = 'M'
+                b = 'B'
+            of 'S':
+                a = 'S'
+                b = 'E'
+            of 'E':
+                a = 'B'
+                b = 'M'
+            else:
+                discard
+            ap = trans_p[a].getOrDefault(k,MIN_FLOAT) + probRef.getOrDefault(a,MIN_FLOAT) + ep
+            bp = trans_p[b].getOrDefault(k,MIN_FLOAT) + probRef.getOrDefault(b,MIN_FLOAT) + ep
+            ps = cmpTrans(ap,bp,a,b)
+            prob_table_list[t][k] = ps.prob
+            pos_list = path[ps.state]
             pos_list.add(k)
-            newpath[k] =  pos_list
+            newpath[k] = pos_list
         path = newpath
     let last = prob_table_list[runeLen - 1]
-    fps = max( lc[(prob:last.getOrDefault(y,MIN_FLOAT), state: y) | (y <- "ES" ),ProbState])
-    result = (prob: ps.prob,state:lc[y | (y <- path[fps.state]),char ] )
+    ap = last.getOrDefault('E',MIN_FLOAT)
+    bp = last.getOrDefault('S',MIN_FLOAT)
+    ps = cmpTrans(ap,bp,'E','S')
+    result = (prob: ps.prob,state:path[ps.state] )
 
 iterator internal_cut(sentence:string):seq[Rune]  =
     let 
