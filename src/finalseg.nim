@@ -14,23 +14,15 @@ import strutils except split
 import times
 import unicode
 import unicodedb/scripts
-# import hashes
-# import critbits
 
 const
     MIN_FLOAT = -3.14e100
-    PrevStatus = {
-        'B': "ES",
-        'M': "MB",
-        'S': "SE",
-        'E': "BM"
-    }.toTable
     BMES = "BMES"
 
 type
-    ProbStart = Table[char, float]
-    ProbTrans = Table[char, Table[char, float]]
-    ProbEmit = Table[char, Table[string, float]]
+    ProbStart = TableRef[char, float]
+    ProbTrans = TableRef[char, TableRef[char, float]]
+    ProbEmit = TableRef[char, TableRef[string, float]]
     # ProbEmit = CritBitTree[float] 
     ProbState =  tuple[prob: float, state: char]
     ProbState2 = tuple[prob: float, state: seq[char]]
@@ -75,71 +67,76 @@ iterator splitHan(s: string): string =
     j = k
     isHan = isHanCurr
 
-proc viterbi(content:string, states:string, start_p:ProbStart, trans_p:ProbTrans,emit_p:ProbEmit):ProbState2 = 
+template cmpTrans(a,b,k:char,ep:float,probRef:TableRef[char, float]):ProbState =
+    var 
+        ap = PROB_TRANS_DATA[a][k] + probRef[a] + ep
+        bp = PROB_TRANS_DATA[b][k] + probRef[b] + ep
+        at = (prob:ap,state:a)
+        bt = (prob:bp,state:b)
+    max(at,bt)
+
+proc cmpTrans(ap,bp:float,a,b:char):ProbState=
+    var 
+        at = (prob:ap,state:a)
+        bt = (prob:bp,state:b)
+    result = max(at,bt)
+  
+proc viterbi(content:string, states = BMES, start_p = PROB_START_DATA, trans_p = PROB_TRANS_DATA,emit_p = PROB_EMIT_DATA):ProbState2 = 
     let 
         runeLen = content.runeLen()
     var 
-        firstRune:Rune
+        curRune:Rune
         runeOffset = 0
-        prob_table_list = newSeqWith(runeLen, initTable[char, float]() )
+        prob_table_list = newSeqWith(runeLen, newTable[char, float]() )
         path = initTable[char, seq[char]]()
-    fastRuneAt(content,runeOffset,firstRune)
-    let
-        y2 = $firstRune
+    fastRuneAt(content,runeOffset,curRune)
     var 
         ep:float
-        emit_key:string
+        emit_key = $curRune
 
     for k in states:  # init
-        prob_table_list[0][k] = start_p[k] + emit_p[k].getOrDefault(y2,MIN_FLOAT)
+        prob_table_list[0][k] = start_p[k] + emit_p[k].getOrDefault(emit_key,MIN_FLOAT)
         path[k] =  @[k]
 
     var 
         newpath = initTable[char, seq[char]]()
         prob_list = newSeq[ProbState]()
         pos_list = newSeq[char]()
-        fps:ProbState
         ps:ProbState
-        p1:float
-        p2:float
-        prob:float
-        transRef:Table[char, float]
-        probRef:Table[char, float]
-        curRune:Rune
-        # BMES2=newTable[char, float]()
+        probRef:TableRef[char, float]
+    
     for t in 1..<runeLen:
         fastRuneAt(content,runeOffset,curRune)
         emit_key = $curRune
-
-        # restOne.clear()
-        # prob_table_list.add(restOne)
         newpath.clear()
-        pos_list.setLen(0)
-
+        probRef = prob_table_list[t-1]
         for k in states:
             ep = emit_p[k].getOrDefault(emit_key,MIN_FLOAT)
             prob_list.setLen(0)
-            for vChar in PrevStatus[k]: 
-                transRef = trans_p[vChar]
-                probRef = prob_table_list[t-1]
-                p1 = probRef.getOrDefault(vChar,MIN_FLOAT)
-                p2 = transRef.getOrDefault(k,MIN_FLOAT)
-                prob = p1 + p2 + ep
-                ps = (prob:prob,state:vChar)
-                prob_list.add(ps)
-            fps = max(prob_list)
-            prob_table_list[t][k] = fps.prob
-            pos_list = lc[y | (y <- path[fps.state]),char ]
+            
+            case k:
+            of 'B':
+                ps = cmpTrans('E','S',k,ep,probRef)
+            of 'M':
+                ps = cmpTrans('M','B',k,ep,probRef)
+            of 'S':
+                ps = cmpTrans('S','E',k,ep,probRef)
+            of 'E':
+                ps = cmpTrans('B','M',k,ep,probRef)
+            else:
+                discard
+            prob_table_list[t][k] = ps.prob
+            pos_list = path[ps.state]
             pos_list.add(k)
-            newpath[k] =  pos_list
+            newpath[k] = pos_list
         path = newpath
     let last = prob_table_list[runeLen - 1]
-    fps = max( lc[(prob:last.getOrDefault(y,MIN_FLOAT), state: y) | (y <- "ES" ),ProbState])
-    result = (prob: ps.prob,state:lc[y | (y <- path[fps.state]),char ] )
+    ps = cmpTrans(last['E'],last['S'],'E','S')
+    result = (prob: ps.prob,state:path[ps.state] )
 
 iterator internal_cut(sentence:string):seq[Rune]  =
     let 
-        mp = viterbi(sentence, BMES, PROB_START_DATA, PROB_TRANS_DATA,PROB_EMIT_DATA)
+        mp = viterbi(sentence)
     var
         runeOffset =  0
         entry:seq[Rune]
@@ -147,12 +144,9 @@ iterator internal_cut(sentence:string):seq[Rune]  =
 
     for rune in sentence.runes:
         pos = mp.state[runeOffset]
-        runeOffset += 1
-        if pos == 'S':
-            entry.add(rune)
-            yield entry
-            entry.setLen(0)
-        elif pos == 'E':
+        inc runeOffset
+        case pos:
+        of 'S','E':
             entry.add(rune)
             yield entry
             entry.setLen(0)
@@ -194,7 +188,7 @@ let
 proc add_force_split*(word:string) = 
     Force_Split_Words.add(word)
 
-iterator cut*(sentence:string):string  =  
+iterator cut*(sentence: string):string  = 
     # if sentence.len > 0 and sentence.runeLen > 0:
     var 
         wordStr:string

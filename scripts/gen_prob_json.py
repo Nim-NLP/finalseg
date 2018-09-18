@@ -9,14 +9,7 @@ import re
 start_P, trans_P, emit_P = load_model()
 par = path.dirname(path.dirname(path.abspath(__file__)))
 
-TEMPLATE = "import tables\nconst %s_DATA* = %s"
-TEMPLATE2 = """
-import tables
-import hashes
-const %s_DATA* = %s
-"""
-# TEMPLATE2 = "var DATA* = %s"
-
+TEMPLATE = "import tables\nlet %s_DATA* = %s"
 
 def dump2json():
     with open(path.join(par, "src/prob_start.json"), "w") as f:
@@ -37,19 +30,23 @@ def trans2nim():
         prob_start_nim_source = \
         TEMPLATE % (
             "PROB_START", prob_start.read()
-            .replace("}", "}.toTable")
+
+            .replace("}", "}.newTable")
             .replace('"', "'")
             )
         prob_trans_nim_source = \
         TEMPLATE % (
             "PROB_TRANS", prob_trans.read()
-            .replace("}", "}.toTable")
+
+            .replace("}", "}.newTable")
             .replace('"', "'")
             )
         prob_emit_nim_source = \
-        TEMPLATE2 % ("PROB_EMIT", re.sub(r'"([BMES])"',r"'\1'",prob_emit.read())
-                    .replace("}", "}.toTable")
+        TEMPLATE % ("PROB_EMIT", re.sub(r'"([BMES])"',r"'\1'",prob_emit.read())
+                    .replace("}", "}.newTable")
+
                     )
+        # re.sub(r'"([^\"])"',r'"\1".toRune',
         prob_start_nim.write(prob_start_nim_source)
         prob_trans_nim.write(prob_trans_nim_source)
         prob_emit_nim.write(prob_emit_nim_source)
