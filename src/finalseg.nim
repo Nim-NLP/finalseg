@@ -68,24 +68,32 @@ iterator splitHan(s: string): string =
     j = k
     isHan = isHanCurr
 
+template cmpTrans(a,b,k:char,ep:float,probRef:OrderedTableRef[char, float]):ProbState =
+    var 
+        ap = PROB_TRANS_DATA[a][k] + probRef[a] + ep
+        bp = PROB_TRANS_DATA[b][k] + probRef[b] + ep
+        at = (prob:ap,state:a)
+        bt = (prob:bp,state:b)
+    max(at,bt)
+
 proc cmpTrans(ap,bp:float,a,b:char):ProbState =
     var 
         at = (prob:ap,state:a)
         bt = (prob:bp,state:b)
     result = max(at,bt)
-
-proc viterbi(content:string, states:string, start_p:ProbStart, trans_p:ProbTrans,emit_p:ProbEmit):ProbState2 = 
+    
+proc viterbi(content:string, states = BMES, start_p = PROB_START_DATA, trans_p = PROB_TRANS_DATA,emit_p = PROB_EMIT_DATA):ProbState2 = 
     let 
         runeLen = content.runeLen()
     var 
-        firstRune:Rune
+        curRune:Rune
         runeOffset = 0
         prob_table_list = newSeqWith(runeLen, newOrderedTable[char, float]() )
         path = initTable[char, seq[char]]()
-    fastRuneAt(content,runeOffset,firstRune)
+    fastRuneAt(content,runeOffset,curRune)
     var 
         ep:float
-        emit_key = $firstRune
+        emit_key = $curRune
 
     for k in states:  # init
         prob_table_list[0][k] = start_p[k] + emit_p[k].getOrDefault(emit_key,MIN_FLOAT)
@@ -98,11 +106,8 @@ proc viterbi(content:string, states:string, start_p:ProbStart, trans_p:ProbTrans
         ps:ProbState
         ap:float
         bp:float
-        a:char
-        b:char
         probRef:OrderedTableRef[char, float]
-        curRune:Rune
-
+    
     for t in 1..<runeLen:
         fastRuneAt(content,runeOffset,curRune)
         emit_key = $curRune
@@ -114,36 +119,29 @@ proc viterbi(content:string, states:string, start_p:ProbStart, trans_p:ProbTrans
             
             case k:
             of 'B':
-                a = 'E'
-                b = 'S'
+                ps = cmpTrans('E','S',k,ep,probRef)
             of 'M':
-                a = 'M'
-                b = 'B'
+                ps = cmpTrans('M','B',k,ep,probRef)
             of 'S':
-                a = 'S'
-                b = 'E'
+                ps = cmpTrans('S','E',k,ep,probRef)
             of 'E':
-                a = 'B'
-                b = 'M'
+                ps = cmpTrans('B','M',k,ep,probRef)
             else:
                 discard
-            ap = trans_p[a].getOrDefault(k,MIN_FLOAT) + probRef.getOrDefault(a,MIN_FLOAT) + ep
-            bp = trans_p[b].getOrDefault(k,MIN_FLOAT) + probRef.getOrDefault(b,MIN_FLOAT) + ep
-            ps = cmpTrans(ap,bp,a,b)
             prob_table_list[t][k] = ps.prob
             pos_list = path[ps.state]
             pos_list.add(k)
             newpath[k] = pos_list
         path = newpath
     let last = prob_table_list[runeLen - 1]
-    ap = last.getOrDefault('E',MIN_FLOAT)
-    bp = last.getOrDefault('S',MIN_FLOAT)
+    ap = last['E']
+    bp = last['S']
     ps = cmpTrans(ap,bp,'E','S')
     result = (prob: ps.prob,state:path[ps.state] )
 
 iterator internal_cut(sentence:string):seq[Rune]  =
     let 
-        mp = viterbi(sentence, BMES, PROB_START_DATA, PROB_TRANS_DATA,PROB_EMIT_DATA)
+        mp = viterbi(sentence)
     var
         runeOffset =  0
         entry:seq[Rune]
@@ -151,12 +149,9 @@ iterator internal_cut(sentence:string):seq[Rune]  =
 
     for rune in sentence.runes:
         pos = mp.state[runeOffset]
-        runeOffset += 1
-        if pos == 'S':
-            entry.add(rune)
-            yield entry
-            entry.setLen(0)
-        elif pos == 'E':
+        inc runeOffset
+        case pos:
+        of 'S','E':
             entry.add(rune)
             yield entry
             entry.setLen(0)
@@ -198,7 +193,7 @@ let
 proc add_force_split*(word:string) = 
     Force_Split_Words.add(word)
 
-iterator cut*(sentence:string):string  =  
+iterator cut*(sentence: string):string  = 
     # if sentence.len > 0 and sentence.runeLen > 0:
     var 
         wordStr:string
