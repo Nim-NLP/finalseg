@@ -13,7 +13,7 @@ if __name__ == "__main__":
     #     import cppjieba_py.posseg as pseg  # 0:00:11.860994
     # elif sys.argv[1] == "jieba":  # 0:01:24.703040
     # import jieba
-    from jieba.finalseg import cut
+    from jieba_fast.finalseg import cut
     # import jieba.posseg as pseg  # 0:00:00.048153
     # elif sys.argv[1] == "jieba_fast":
     #     import jieba_fast as jieba
@@ -34,9 +34,9 @@ if __name__ == "__main__":
     # result[random.randint(0, 9)] = '/'.join(str(method("南京长江大桥", HMM=HMM)))
     starttime = datetime.datetime.now()
 
-    # for i in range(50):
-    for line in lines:
-        r = '/'.join(str(list(method(line))))
+    for i in range(50):
+        for line in lines:
+            r = '/'.join(str(list(method(line))))
     # print(r)
     # result[random.randint(0, 9)] = r
     #result[random.randint(0, 9)] = jieba.cut(line)

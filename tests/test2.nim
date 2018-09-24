@@ -22,6 +22,7 @@ proc main =
     var 
         fs = newFileStream(weicheng, fmRead)
         line = ""
+ 
     if not isNil(fs):
         while fs.readLine(line):
             lines.add(line)
@@ -31,13 +32,13 @@ proc main =
     # var content = readFile(weicheng)
     var 
         starttime = epochTime()
-    # for i in 0..49:
+    for i in 0..49:
     # splitLines(content):
 
-    for line in lines:
-        # for x in split(line,re_skip):
-        #     discard
-        discard lcut(line).join("/")
+        for line in lines:
+            # for x in split(line,re_skip):
+            #     discard
+            discard lcut(line).join("/")
         # for blk in splitHan(line):
         #     # for k in BMES:
         #     # discard containsHan(blk)
