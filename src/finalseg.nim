@@ -15,15 +15,15 @@ const
   BMES = "BMES"
 
 type
-  ProbStart = TableRef[char, float]
-  ProbTrans = TableRef[char, TableRef[char, float]]
-  ProbEmit = TableRef[char, TableRef[string, float]]
+  # ProbStart = TableRef[char, float]
+  # ProbTrans = TableRef[char, TableRef[char, float]]
+  # ProbEmit = TableRef[char, TableRef[string, float]]
   ProbState = tuple[prob: float, state: char]
   ProbState2 = tuple[prob: float, state: seq[char], strings: seq[Natural]]
 
 var Force_Split_Words = newSeq[string]()
 
-proc isHan(r: Rune): bool =
+proc isHan(r: Rune): bool {.inline.} =
   # fast ascii check followed by unicode check
   result = r.int > 127 and r.unicodeScript() == sptHan
 
@@ -64,7 +64,7 @@ template cmpTrans(a, b, k: char, ep: float, probRef: TableRef[char,
     bt = (prob: bp, state: b)
   max(at, bt)
 
-proc cmpTrans(ap, bp: float, a, b: char): ProbState =
+proc cmpTrans(ap, bp: float, a, b: char): ProbState {.inline.} =
   var
     at = (prob: ap, state: a)
     bt = (prob: bp, state: b)
