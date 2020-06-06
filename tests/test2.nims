@@ -1,2 +1,6 @@
 switch("path", "$projectDir/../src")
 switch("d", "release")
+#switch("profiler", "on")
+#switch("stackTrace", "on")
+switch("d", "danger")
+switch("gc", "arc")

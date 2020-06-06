@@ -15,9 +15,6 @@ const
   BMES = "BMES"
 
 type
-  # ProbStart = TableRef[char, float]
-  # ProbTrans = TableRef[char, TableRef[char, float]]
-  # ProbEmit = TableRef[char, TableRef[string, float]]
   ProbState = tuple[prob: float, state: char]
   ProbState2 = tuple[prob: float, state: seq[char], strings: seq[Natural]]
 
@@ -158,9 +155,9 @@ iterator cut*(sentence: sink string): string =
   for blk in splitHan(sentence):
     if blk.len == 0:
       continue
-    if likely(containsHan(blk) == true):
+    if containsHan(blk) == true:
       for wordStr in internal_cut(blk):
-        if likely(wordStr notin Force_Split_Words):
+        if wordStr notin Force_Split_Words:
           yield wordStr
         else:
           for c in wordStr:
@@ -168,7 +165,7 @@ iterator cut*(sentence: sink string): string =
     else:
       yield blk
 
-proc lcut*(sentence: sink string): seq[string] {.noInit.} =
+proc lcut*(sentence: sink string): seq[string] =
   if len(sentence) == 0 or sentence.runeLen == 0:
     result = @[]
   else:
