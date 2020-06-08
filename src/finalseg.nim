@@ -24,7 +24,7 @@ proc isHan(r: Rune): bool {.inline.} =
   # fast ascii check followed by unicode check
   result = r.int > 127 and r.unicodeScript() == sptHan
 
-proc containsHan(s: string): bool =
+proc containsHan(s:sink string): bool =
   for r in s.runes:
     if r.isHan:
       result = true
@@ -70,6 +70,13 @@ proc cmpTrans(ap, bp: float, a, b: char): ProbState {.inline.} =
     bt:ProbState = (prob: bp, state: b)
   result = max(at, bt)
 
+var
+  prob_list = newSeq[ProbState]()
+  pos_list = newSeq[char]()
+  ps: ProbState
+  probRef: TableRef[char, float]
+  pos_list_list: seq[seq[char]]
+  
 proc viterbi(content: sink string, states = BMES, start_p = PROB_START_DATA,
     trans_p = PROB_TRANS_DATA, emit_p = PROB_EMIT_DATA): ProbState2 =
   let
@@ -90,13 +97,14 @@ proc viterbi(content: sink string, states = BMES, start_p = PROB_START_DATA,
   for k in states: # init
     prob_table_list[0][k] = start_p[k] + emit_p[k].getOrDefault(emit_key, MIN_FLOAT)
     path[k] = @[k]
-
-  var
-    prob_list = newSeqOfCap[ProbState](runeLen)
-    pos_list = newSeqOfCap[char](runeLen)
-    ps: ProbState
-    probRef: TableRef[char, float]
-    pos_list_list: seq[seq[char]]
+  prob_list.setLen(runeLen)
+  pos_list.setLen(runeLen)
+  # var
+  #   prob_list = newSeqOfCap[ProbState](runeLen)
+  #   pos_list = newSeqOfCap[char](runeLen)
+  #   ps: ProbState
+  #   probRef: TableRef[char, float]
+  #   pos_list_list: seq[seq[char]]
 
   for t in 1..<runeLen:
     fastRuneAt(content, runeOffset, curRune)
@@ -154,7 +162,7 @@ iterator internal_cut(sentence: sink string): string =
 proc add_force_split*(word: sink string) =
   Force_Split_Words.add(word)
 
-iterator cut*(sentence: sink string): string =
+iterator cut*(sentence:sink string): string =
   for blk in splitHan(sentence):
     if blk.len == 0:
       continue

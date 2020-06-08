@@ -24,8 +24,10 @@ proc main =
     starttime = epochTime()
   # jiba_fast 0:00:00.353178
   # jieba 0:00:03.179085
-  for line in lines:
+  for line in lines.mitems:
     discard lcut(line).join("/")
+    # for x in cut(line):
+    #   discard
 
   var endtime = epochTime()
   echo (endtime - starttime)
