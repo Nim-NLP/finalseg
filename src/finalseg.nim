@@ -52,19 +52,22 @@ iterator splitHan(s: sink string): string =
     j = k
     isHan = isHanCurr
 
+proc `<=`(a,b:ProbState):bool {.inline.} =
+  a.prob <= b.prob
+
 template cmpTrans(a, b, k: char, ep: float, probRef: TableRef[char,
     float]): ProbState =
   var
     ap = PROB_TRANS_DATA[a][k] + probRef[a] + ep
     bp = PROB_TRANS_DATA[b][k] + probRef[b] + ep
-    at = (prob: ap, state: a)
-    bt = (prob: bp, state: b)
+    at:ProbState = (prob: ap, state: a)
+    bt:ProbState = (prob: bp, state: b)
   max(at, bt)
 
 proc cmpTrans(ap, bp: float, a, b: char): ProbState {.inline.} =
   var
-    at = (prob: ap, state: a)
-    bt = (prob: bp, state: b)
+    at:ProbState = (prob: ap, state: a)
+    bt:ProbState = (prob: bp, state: b)
   result = max(at, bt)
 
 proc viterbi(content: sink string, states = BMES, start_p = PROB_START_DATA,
