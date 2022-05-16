@@ -2,7 +2,7 @@
 
 Chinese Words Segment Library in Nim based on HMM Model
 
-porting from [jiba's finalseg module ](https://github.com/fxsjy/jieba/tree/master/jieba/finalseg)
+porting from [jieba's finalseg module ](https://github.com/fxsjy/jieba/tree/master/jieba/finalseg)
 
 ## Usage
 
