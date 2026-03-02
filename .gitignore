@@ -1,7 +1,17 @@
 #### joe made this: http://goel.io/joe
+*
+!**/
+!*.*
+
+nimcache
+*.exe
+*.swp
+.DS_Store
 profile_results.txt
-test2
-test1
+testresults/
+tests/megatest.nim
+tests/megatest
+outputGotten.txt
 #### nim ####
 nimcache/
 #### joe made this: http://goel.io/joe

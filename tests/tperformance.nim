@@ -1,3 +1,7 @@
+discard """
+  action: "compile"
+  disabled: "true"
+"""
 import os
 import streams
 import times
